@@ -1,5 +1,43 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Server/API structure
+
+The example API keeps Next.js route handlers small and groups server code by feature:
+
+```text
+app/
+  api/
+    health/route.ts        # GET /api/health
+    rsvps/route.ts         # GET, POST /api/rsvps
+server/
+  features/
+    rsvps/
+      rsvp.types.ts        # Domain types
+      rsvp.schema.ts       # Input validation
+      rsvp.repository.ts   # Data access
+      rsvp.service.ts      # Business logic
+  shared/
+    http/api-response.ts   # Shared HTTP response helpers
+```
+
+`route.ts` is the HTTP boundary. It parses the request and formats the response.
+Feature services contain business rules, while repositories are the only modules
+that should know how data is stored.
+
+The RSVP repository currently uses in-memory demo data, which resets whenever the
+server process restarts and is not suitable for deployment. Replace only
+`rsvp.repository.ts` when adding Prisma, Drizzle, or another database layer.
+
+Try the API after running `pnpm dev`:
+
+```bash
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/rsvps
+curl -X POST http://localhost:3000/api/rsvps \
+  -H "Content-Type: application/json" \
+  -d '{"guestName":"An Nguyen","attendance":"yes","guestCount":2,"message":"See you!"}'
+```
+
 ## Getting Started
 
 First, run the development server:
