@@ -56,7 +56,13 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to self-host and optimize Playfair Display, Lora, and Montserrat. The Tailwind v4 theme in `app/globals.css` exposes the wedding palette and typography through semantic utilities such as `bg-primary`, `text-foreground`, `font-heading`, `font-body`, and `font-label`.
+
+## Possible improvements
+
+The current design tokens live in `app/globals.css`, which keeps the setup easy to discover while the application is small. If the design system grows or needs to be shared across multiple applications, move the palette, semantic tokens, typography, and dark-theme mappings into a dedicated file such as `styles/theme.css` and import it from `globals.css`.
+
+Tailwind v4 uses CSS-first configuration, so this extraction should continue using `@theme` and `@theme inline` instead of introducing a JavaScript `tailwind.config` only for colors and fonts. Keep fixed brand primitives in `@theme`, and bridge theme-dependent semantic values from `:root` and `.dark` through `@theme inline`.
 
 ## Learn More
 
