@@ -8,7 +8,7 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    // Keep generation/build working before a developer creates their local .env.
-    url: process.env.DATABASE_URL ?? "",
+    // Prisma CLI commands use the session-mode pooler. The app uses DATABASE_URL at runtime.
+    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? "",
   },
 });
