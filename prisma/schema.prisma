@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AttendanceStatus {
+  ATTENDING
+  NOT_ATTENDING
+}
+
+model Rsvp {
+  id         String           @id @default(cuid())
+  guestName  String           @db.VarChar(100)
+  attendance AttendanceStatus
+  guestCount Int              @default(1)
+  message    String?          @db.VarChar(500)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@map("rsvps")
+}
