@@ -9,7 +9,4 @@ export type Rsvp = {
   createdAt: string;
 };
 
-export type CreateRsvpInput = Pick<
-  Rsvp,
-  "guestName" | "attendance" | "guestCount" | "message"
->;
+export type CreateRsvpInput = Pick<Rsvp, "guestName" | "attendance" | "guestCount" | "message">;

@@ -1,6 +1,6 @@
-import { badRequest, ok } from "@/server/shared/http/api-response";
 import { createRsvpInputSchema } from "@/server/features/rsvps/rsvp.schema";
 import { rsvpService } from "@/server/features/rsvps/rsvp.service";
+import { badRequest, ok } from "@/server/shared/http/api-response";
 
 export async function GET() {
   const rsvps = await rsvpService.list();

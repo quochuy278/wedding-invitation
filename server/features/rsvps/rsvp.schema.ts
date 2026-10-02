@@ -24,14 +24,11 @@ export function createRsvpInputSchema(value: unknown): ParseResult {
   }
 
   const errors: ValidationError[] = [];
-  const guestName =
-    typeof value.guestName === "string" ? value.guestName.trim() : "";
+  const guestName = typeof value.guestName === "string" ? value.guestName.trim() : "";
   const attendance = value.attendance;
   const guestCount = value.guestCount;
   const message =
-    typeof value.message === "string" && value.message.trim()
-      ? value.message.trim()
-      : null;
+    typeof value.message === "string" && value.message.trim() ? value.message.trim() : null;
 
   if (guestName.length < 2 || guestName.length > 100) {
     errors.push({
