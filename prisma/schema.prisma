@@ -7,19 +7,58 @@ datasource db {
   provider = "postgresql"
 }
 
-enum AttendanceStatus {
-  ATTENDING
-  NOT_ATTENDING
+model User {
+  id           String      @id @default(cuid())
+  full_name    String
+  phone_number String      @unique
+  email        String      @unique
+  created_at   DateTime    @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime    @updatedAt @db.Timestamptz(3)
+  deleted_at   DateTime?   @db.Timestamptz(3)
+  invitation   Invitation?
+
+  @@map("users")
 }
 
-model Rsvp {
-  id         String           @id @default(cuid())
-  guestName  String           @db.VarChar(100)
-  attendance AttendanceStatus
-  guestCount Int              @default(1)
-  message    String?          @db.VarChar(500)
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+model Address {
+  id           String       @id @default(cuid())
+  name         String
+  address_text String
+  event_at     DateTime     @db.Timestamptz(3)
+  created_at   DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at   DateTime     @updatedAt @db.Timestamptz(3)
+  invitations  Invitation[]
 
-  @@map("rsvps")
+  @@map("addresses")
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  code        String    @unique @default(cuid())
+  user_id     String    @unique
+  address_id  String
+  status      String
+  guest_count Int       @default(1)
+  created_at  DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime  @updatedAt @db.Timestamptz(3)
+  expires_at  DateTime  @db.Timestamptz(3)
+  deleted_at  DateTime? @db.Timestamptz(3)
+  user        User      @relation(fields: [user_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  address     Address   @relation(fields: [address_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  wishes      Wish[]
+
+  @@index([address_id])
+  @@map("invitations")
+}
+
+model Wish {
+  id            String     @id @default(cuid())
+  invitation_id String
+  content       String
+  created_at    DateTime   @default(now()) @db.Timestamptz(3)
+  updated_at    DateTime   @updatedAt @db.Timestamptz(3)
+  invitation    Invitation @relation(fields: [invitation_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  @@index([invitation_id])
+  @@map("wishes")
 }
