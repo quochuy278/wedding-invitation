@@ -21,3 +21,15 @@ export function badRequest(message: string, details?: ErrorDetail[]) {
     { status: 400 },
   );
 }
+
+export function notFound(message: string) {
+  return Response.json(
+    {
+      error: {
+        code: "NOT_FOUND",
+        message,
+      },
+    },
+    { status: 404 },
+  );
+}

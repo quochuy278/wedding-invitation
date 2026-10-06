@@ -8,9 +8,17 @@ The example API keeps Next.js route handlers small and groups server code by fea
 app/
   api/
     health/route.ts        # GET /api/health
+    invitations/
+      [code]/route.ts      # GET /api/invitations/:code
     rsvps/route.ts         # GET, POST /api/rsvps
+shared/
+  contracts/
+    invitation.ts          # API DTO shared by server and future clients
 server/
   features/
+    invitations/
+      invitation.repository.ts # Prisma query and public field selection
+      invitation.service.ts    # Maps database records to the shared DTO
     rsvps/
       rsvp.types.ts        # Domain types
       rsvp.schema.ts       # Input validation
@@ -32,6 +40,7 @@ Try the API after running `pnpm dev`:
 
 ```bash
 curl http://localhost:3000/api/health
+curl http://localhost:3000/api/invitations/INVITATION_CODE
 curl http://localhost:3000/api/rsvps
 curl -X POST http://localhost:3000/api/rsvps \
   -H "Content-Type: application/json" \
