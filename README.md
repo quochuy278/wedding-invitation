@@ -38,6 +38,86 @@ curl -X POST http://localhost:3000/api/rsvps \
   -d '{"guestName":"An Nguyen","attendance":"yes","guestCount":2,"message":"See you!"}'
 ```
 
+## Client API services
+
+Axios and TanStack React Query are configured for browser-side API calls:
+
+```text
+lib/
+  api/
+    config.ts             # API base URL and request timeout
+    client.ts             # Shared Axios instance
+    types.ts              # Success and error response envelopes
+  react-query/
+    query-client.ts       # Query cache and default options
+components/
+  providers/
+    query-provider.tsx    # React Query context, mounted in app/layout.tsx
+services/
+  rsvps/
+    rsvp.types.ts         # Type-only exports of the existing API contract
+    rsvp.service.ts       # GET and POST /api/rsvps via Axios
+hooks/
+  queries/
+    use-rsvps.ts          # Query keys, list query, and create mutation
+```
+
+`NEXT_PUBLIC_API_BASE_URL` defaults to `/api`, so `rsvpService.list()` calls
+`/api/rsvps` on the current origin. Set it to an absolute API URL when using a
+separate backend. Restart the dev server after changing it; production changes
+require rebuilding because Next.js bundles public environment variables at build
+time. The Axios request timeout is 15 seconds.
+
+Services handle HTTP requests and return the data inside the API's `{ data }`
+envelope. Hooks manage loading state, errors, and caching. Axios errors retain the
+API response, available through `error.response?.data.error.message` when present.
+
+The query defaults keep data fresh for 60 seconds, retry failed reads once, and
+disable refetching on window focus. Mutations are not retried. Creating an RSVP
+invalidates the RSVP list so active queries refresh after a successful submission.
+The query client is reused in the browser and created separately for each server
+render, following the [TanStack App Router setup](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
+
+Use the hooks inside a Client Component:
+
+```tsx
+"use client";
+
+import { useCreateRsvp, useRsvps } from "@/hooks/queries/use-rsvps";
+
+export function RsvpSummary() {
+  const { data: rsvps, isPending, error } = useRsvps();
+  const { mutate: createRsvp, isPending: isSubmitting } = useCreateRsvp();
+
+  if (isPending) return <p>Loading...</p>;
+  if (error) {
+    return <p>{error.response?.data.error.message ?? error.message}</p>;
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={isSubmitting}
+      onClick={() =>
+        createRsvp({
+          guestName: "An Nguyen",
+          attendance: "yes",
+          guestCount: 2,
+          message: null,
+        })
+      }
+    >
+      Confirm attendance ({rsvps.length} responses)
+    </button>
+  );
+}
+```
+
+The invitation UI still uses its current fixture. This scaffold starts API calls
+only when a component uses a query hook or invokes a service. For each new feature,
+add its types and service under `services/<feature>/` and its query/mutation hooks
+under `hooks/queries/`.
+
 ## Getting Started
 
 First, run the development server:
