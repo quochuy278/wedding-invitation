@@ -32,16 +32,29 @@ const publicInvitationSelect = {
   },
 } as const;
 
+function activeInvitationWhere(code: string) {
+  return {
+    code,
+    deleted_at: null,
+    user: {
+      deleted_at: null,
+    },
+  } as const;
+}
+
 export const invitationRepository = {
+  findActiveIdByCode(code: string) {
+    return prisma.invitation.findFirst({
+      where: activeInvitationWhere(code),
+      select: {
+        id: true,
+      },
+    });
+  },
+
   findActiveByCode(code: string) {
     return prisma.invitation.findFirst({
-      where: {
-        code,
-        deleted_at: null,
-        user: {
-          deleted_at: null,
-        },
-      },
+      where: activeInvitationWhere(code),
       select: publicInvitationSelect,
     });
   },

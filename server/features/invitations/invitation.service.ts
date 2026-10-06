@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { InvitationDto } from "@/shared/contracts/invitation";
+import type { InvitationCodeValidationDto, InvitationDto } from "@/shared/contracts/invitation";
 import { invitationRepository, type PublicInvitationRecord } from "./invitation.repository";
 
 function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
@@ -27,6 +27,12 @@ function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
 }
 
 export const invitationService = {
+  async validateCode(code: string): Promise<InvitationCodeValidationDto> {
+    const invitation = await invitationRepository.findActiveIdByCode(code);
+
+    return { isValid: invitation !== null };
+  },
+
   async getByCode(code: string): Promise<InvitationDto | null> {
     const invitation = await invitationRepository.findActiveByCode(code);
 

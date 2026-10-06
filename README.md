@@ -10,6 +10,7 @@ app/
     health/route.ts        # GET /api/health
     invitations/
       [code]/route.ts      # GET /api/invitations/:code
+      validate/route.ts    # POST /api/invitations/validate
     rsvps/route.ts         # GET, POST /api/rsvps
 shared/
   contracts/
@@ -41,6 +42,9 @@ Try the API after running `pnpm dev`:
 ```bash
 curl http://localhost:3000/api/health
 curl http://localhost:3000/api/invitations/INVITATION_CODE
+curl -X POST http://localhost:3000/api/invitations/validate \
+  -H "Content-Type: application/json" \
+  -d '{"code":"INVITATION_CODE"}'
 curl http://localhost:3000/api/rsvps
 curl -X POST http://localhost:3000/api/rsvps \
   -H "Content-Type: application/json" \

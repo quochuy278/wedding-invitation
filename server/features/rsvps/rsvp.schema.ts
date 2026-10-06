@@ -1,21 +1,13 @@
 import "server-only";
 
+import {
+  isRecord,
+  type ParseResult,
+  type ValidationError,
+} from "@/server/shared/validation/schema";
 import type { Attendance, CreateRsvpInput } from "./rsvp.types";
 
-type ValidationError = {
-  field: string;
-  message: string;
-};
-
-type ParseResult =
-  | { success: true; data: CreateRsvpInput }
-  | { success: false; errors: ValidationError[] };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-export function createRsvpInputSchema(value: unknown): ParseResult {
+export function createRsvpInputSchema(value: unknown): ParseResult<CreateRsvpInput> {
   if (!isRecord(value)) {
     return {
       success: false,

@@ -4,6 +4,14 @@ export type InvitationWishDto = {
   createdAt: string;
 };
 
+export type InvitationCodeValidationDto = {
+  isValid: boolean;
+};
+
+export type ValidateInvitationCodeInput = {
+  code: string;
+};
+
 export type InvitationDto = {
   id: string;
   code: string;
