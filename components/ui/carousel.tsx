@@ -3,6 +3,7 @@
 import { cn } from "cn";
 import useEmblaCarousel, { type UseEmblaCarouselType } from "embla-carousel-react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 
@@ -48,6 +49,7 @@ function Carousel({
   children,
   ...props
 }: React.ComponentProps<"div"> & CarouselProps) {
+  const t = useTranslations("Ui.carousel");
   const [carouselRef, api] = useEmblaCarousel(
     {
       ...opts,
@@ -120,7 +122,7 @@ function Carousel({
         onKeyDownCapture={handleKeyDown}
         className={cn("relative", className)}
         role="region"
-        aria-roledescription="carousel"
+        aria-roledescription={t("label")}
         data-slot="carousel"
         {...props}
       >
@@ -145,11 +147,12 @@ function CarouselContent({ className, ...props }: React.ComponentProps<"div">) {
 
 function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
   const { orientation } = useCarousel();
+  const t = useTranslations("Ui.carousel");
 
   return (
     <div
       role="group"
-      aria-roledescription="slide"
+      aria-roledescription={t("slide")}
       data-slot="carousel-item"
       className={cn(
         "min-w-0 shrink-0 grow-0 basis-full",
@@ -168,6 +171,7 @@ function CarouselPrevious({
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
+  const t = useTranslations("Ui.carousel");
 
   return (
     <Button
@@ -186,7 +190,7 @@ function CarouselPrevious({
       {...props}
     >
       <ChevronLeftIcon />
-      <span className="sr-only">Previous slide</span>
+      <span className="sr-only">{t("previous")}</span>
     </Button>
   );
 }
@@ -198,6 +202,7 @@ function CarouselNext({
   ...props
 }: React.ComponentProps<typeof Button>) {
   const { orientation, scrollNext, canScrollNext } = useCarousel();
+  const t = useTranslations("Ui.carousel");
 
   return (
     <Button
@@ -216,7 +221,7 @@ function CarouselNext({
       {...props}
     >
       <ChevronRightIcon />
-      <span className="sr-only">Next slide</span>
+      <span className="sr-only">{t("next")}</span>
     </Button>
   );
 }

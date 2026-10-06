@@ -1,0 +1,142 @@
+{
+  "Metadata": {
+    "title": "Thiệp mời cưới",
+    "description": "Thiệp mời cưới trực tuyến"
+  },
+  "HomePage": {
+    "title": "Trang chủ"
+  },
+  "LoginPage": {
+    "title": "Đăng nhập"
+  },
+  "DashboardPage": {
+    "title": "Bảng điều khiển"
+  },
+  "Error": {
+    "title": "Đã xảy ra lỗi",
+    "description": "Không thể tải trang vào lúc này. Vui lòng thử lại.",
+    "retry": "Thử lại"
+  },
+  "NotFound": {
+    "title": "Không tìm thấy trang",
+    "description": "Trang bạn đang tìm không tồn tại hoặc đã được di chuyển.",
+    "home": "Về trang chủ"
+  },
+  "Invitation": {
+    "metadata": {
+      "title": "Thiệp mời cưới · Huy & Phụng",
+      "description": "Cùng Huy & Phụng viết nên một chương mới. Trân trọng mời bạn chung vui ngày 19.09.2026."
+    },
+    "couple": {
+      "groom": "Huy",
+      "bride": "Phụng"
+    },
+    "layout": {
+      "skipToContent": "Đến nội dung thiệp mời"
+    },
+    "navigation": {
+      "ariaLabel": "Điều hướng thiệp mời",
+      "brandAriaLabel": "Huy và Phụng — Trang chủ",
+      "home": "Trang chủ",
+      "partyInformation": "Thông tin tiệc",
+      "venue": "Địa điểm",
+      "note": "Lời nhắn",
+      "wishes": "Lời chúc",
+      "rsvp": "Xác nhận tham dự"
+    },
+    "hero": {
+      "eyebrow": "Thiệp mời dự tiệc cưới",
+      "displayDate": "19.09.2026",
+      "rsvp": "Xác nhận tham dự",
+      "welcomeLineOne": "Rất mong được gặp bạn",
+      "welcomeLineTwo": "trong ngày vui của chúng mình!",
+      "artworkLineOne": "Cùng nhau",
+      "artworkLineTwo": "đến một chương mới!",
+      "artworkLineThree": "của cuộc đời"
+    },
+    "schedule": {
+      "heading": "Thông tin buổi tiệc",
+      "events": {
+        "guestWelcome": {
+          "title": "Đón khách",
+          "description": "Chào đón bạn đến chung vui cùng chúng mình."
+        },
+        "dinner": {
+          "title": "Khai tiệc",
+          "description": "Cùng nhau thưởng thức những món ăn ngon và những khoảnh khắc đáng nhớ."
+        },
+        "closing": {
+          "title": "Kết thúc dự kiến",
+          "description": "Cảm ơn bạn đã là một phần trong ngày đặc biệt này."
+        }
+      }
+    },
+    "venue": {
+      "heading": "Địa điểm tổ chức",
+      "name": "Nhà hàng Hoàng Gia",
+      "street": "Số 12 Nguyễn Du, Quận 1,",
+      "city": "TP. Hồ Chí Minh",
+      "imageAlt": "Minh họa tiệc cưới trong khu vườn với hoa và dây đèn",
+      "viewMap": "Xem bản đồ"
+    },
+    "note": {
+      "heading": "Lời nhắn nhỏ",
+      "lineOne": "Sự hiện diện của bạn",
+      "lineTwo": "là niềm vui lớn nhất",
+      "lineThree": "đối với chúng mình."
+    },
+    "wishes": {
+      "heading": "Lời chúc yêu thương",
+      "description": "Gửi một lời chúc đến chúng mình trong ngày đặc biệt này nhé!",
+      "submit": "Gửi lời chúc",
+      "closing": "Thân mến, {groom} & {bride}"
+    }
+  },
+  "Ui": {
+    "carousel": {
+      "label": "Bộ trình chiếu",
+      "slide": "Trang chiếu",
+      "previous": "Trang chiếu trước",
+      "next": "Trang chiếu tiếp theo"
+    },
+    "dialog": {
+      "close": "Đóng"
+    },
+    "breadcrumb": {
+      "label": "Đường dẫn điều hướng",
+      "more": "Xem thêm"
+    },
+    "pagination": {
+      "label": "Phân trang",
+      "previous": "Trước",
+      "next": "Tiếp",
+      "goToPrevious": "Đi đến trang trước",
+      "goToNext": "Đi đến trang tiếp theo",
+      "more": "Xem thêm trang"
+    },
+    "sheet": {
+      "close": "Đóng"
+    },
+    "sidebar": {
+      "title": "Thanh bên",
+      "description": "Hiển thị thanh bên trên thiết bị di động.",
+      "toggle": "Bật hoặc tắt thanh bên"
+    },
+    "command": {
+      "title": "Bảng lệnh",
+      "description": "Tìm kiếm một lệnh để chạy..."
+    },
+    "questionnaire": {
+      "previous": "Trước",
+      "skip": "Bỏ qua",
+      "next": "Tiếp",
+      "submit": "Gửi"
+    },
+    "spinner": {
+      "loading": "Đang tải"
+    },
+    "toast": {
+      "close": "Đóng thông báo"
+    }
+  }
+}

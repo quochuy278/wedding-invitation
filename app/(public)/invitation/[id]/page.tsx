@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import { InvitationHero } from "@/components/invitation/invitation-hero";
 import { InvitationNote } from "@/components/invitation/invitation-note";
 import { InvitationSchedule } from "@/components/invitation/invitation-schedule";
@@ -6,11 +7,14 @@ import { InvitationVenue } from "@/components/invitation/invitation-venue";
 import { InvitationWishes } from "@/components/invitation/invitation-wishes";
 import { dummyInvitation } from "@/lib/dummy-invitation";
 
-export const metadata: Metadata = {
-  title: "Thiệp mời cưới · Huy & Phụng",
-  description:
-    "Cùng Huy & Phụng viết nên một chương mới. Trân trọng mời bạn chung vui ngày 19.09.2026.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Invitation.metadata");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 // Every invitation ID uses the same fixture during the UI prototype.
 export default function InvitationPage() {
@@ -22,7 +26,7 @@ export default function InvitationPage() {
       <InvitationSchedule date={invitation.date} events={invitation.schedule} />
       <InvitationVenue venue={invitation.venue} />
       <InvitationNote />
-      <InvitationWishes groom={invitation.groom} bride={invitation.bride} />
+      <InvitationWishes />
     </>
   );
 }

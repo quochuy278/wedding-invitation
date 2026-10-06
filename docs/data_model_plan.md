@@ -1,34 +1,34 @@
-# Data model cho thiệp cưới
+# Wedding invitation data model
 
-Ngày lập: 2026-10-05. Phạm vi: cấu trúc dữ liệu backend trên Prisma + PostgreSQL. Đây là tài liệu thiết kế; chưa thay đổi schema hoặc chạy migration.
+Created: 2026-10-05. Scope: backend data structures using Prisma and PostgreSQL. This is a design document; it does not change the schema or run a migration.
 
-## 1. Yêu cầu đã xác nhận
+## 1. Confirmed requirements
 
-- App phục vụ một đám cưới, scope nhỏ.
-- Mỗi invitation dành cho một khách. Một khách chỉ có một invitation.
-- `user` là khách được mời, không phải tài khoản admin. Thông tin khách do admin nhập khi gửi thiệp; khách không đăng nhập.
-- Invitation có `id` string CUID tự sinh và `code` tự sinh, unique. Admin không đổi các định danh này.
-- Khách tìm thiệp qua `code`.
-- `status` có kiểu **`String`**, dùng để biểu thị trạng thái thiệp, bao gồm xác nhận tham gia. Không dùng enum ở DB, không thêm `is_attending` hoặc field xác nhận trùng nghĩa.
-- `guest_count` lưu tổng số người đi, gồm cả khách nhận thiệp; không chỉ đếm người đi thêm.
-- Mỗi invitation liên kết đúng một address. Hiện có hai địa điểm vào hai ngày khác nhau, lưu thành hai record address; ngày/giờ tổ chức nằm trên address.
-- Một invitation có nhiều lời chúc. Một người có thể gửi nhiều lời chúc; người không có thiệp không được gửi.
-- Invitation có `created_at`, `updated_at`, `expires_at`; `expires_at` bắt buộc.
-- User và invitation soft delete. Address và lời chúc không soft delete.
-- Mọi foreign key phải ghi rõ cả `onUpdate` và `onDelete`.
-- Tất cả tên field, kể cả relation field trong Prisma, dùng snake_case.
-- Phần hiển thị, API và tài khoản admin nằm ngoài phạm vi tài liệu.
+- The app serves one wedding and has a small scope.
+- Each invitation belongs to one guest. A guest can have only one invitation.
+- A `user` is an invited guest, not an admin account. An admin enters the guest details when sending an invitation; guests do not sign in.
+- An invitation has an automatically generated CUID string `id` and an automatically generated unique `code`. Admins cannot change these identifiers.
+- Guests find their invitation by `code`.
+- `status` is a **`String`** that represents the invitation state, including attendance confirmation. Do not use a database enum or add an `is_attending` field with overlapping meaning.
+- `guest_count` stores the total number of attendees, including the invited guest, rather than only additional guests.
+- Each invitation references exactly one address. The current wedding has two venues on different dates, stored as two address records; the event date and time live on the address.
+- An invitation can have many wishes. A guest can submit multiple wishes; someone without an invitation cannot submit one.
+- An invitation has `created_at`, `updated_at`, and `expires_at`; `expires_at` is required.
+- Users and invitations use soft deletion. Addresses and wishes do not.
+- Every foreign key must explicitly define both `onUpdate` and `onDelete`.
+- All field names, including Prisma relation fields, use snake_case.
+- Presentation, APIs, and admin accounts are outside this document's scope.
 
-Các lựa chọn về tên field chi tiết, nullability của thông tin liên hệ/số người đi, native type, indexes và referential actions bên dưới là **đề xuất kỹ thuật**, không phải yêu cầu nghiệp vụ đã được xác nhận riêng. Chưa chốt danh sách giá trị hoặc giá trị mặc định của `status`.
+The detailed field names, contact and guest-count nullability, native types, indexes, and referential actions below are **technical proposals**, not separately confirmed business requirements. The allowed values and default value for `status` have not been decided.
 
-## 2. Các bảng và quan hệ
+## 2. Tables and relationships
 
-| Model dự kiến | Bảng DB | Vai trò |
+| Proposed model | Database table | Purpose |
 | --- | --- | --- |
-| `User` | `users` | Thông tin khách được mời |
-| `Address` | `addresses` | Địa điểm và ngày/giờ tổ chức |
-| `Invitation` | `invitations` | Thiệp riêng của khách, trạng thái và số người đi |
-| `Wish` | `wishes` | Các lời chúc gửi qua thiệp |
+| `User` | `users` | Invited guest details |
+| `Address` | `addresses` | Venue and event date/time |
+| `Invitation` | `invitations` | A guest's invitation, status, and attendee count |
+| `Wish` | `wishes` | Wishes submitted through an invitation |
 
 ```mermaid
 erDiagram
@@ -37,205 +37,205 @@ erDiagram
     invitations ||--o{ wishes : invitation_id
 ```
 
-- Mỗi invitation bắt buộc thuộc một user và một address.
-- `invitations.user_id` có unique constraint: một user có tối đa một invitation, kể cả invitation đã soft delete.
-- Một address được nhiều invitation tham chiếu. Không có bảng nối invitation–address vì mỗi thiệp chỉ chọn một address.
-- Một invitation có từ không đến nhiều lời chúc; mỗi lời chúc bắt buộc thuộc một invitation.
-- Diagram cho phép user chưa có thiệp trong quá trình nhập dữ liệu. FK + unique không bảo đảm mọi user luôn có sẵn một invitation.
-- Hai address là dữ liệu hiện tại, không phải giới hạn số record ở DB. Không thêm bảng đám cưới hay bảng sự kiện cho scope này.
+- Every invitation must belong to one user and one address.
+- `invitations.user_id` has a unique constraint, so a user can have at most one invitation, including soft-deleted invitations.
+- Many invitations can reference one address. There is no invitation-address join table because each invitation selects only one address.
+- An invitation can have zero or more wishes; every wish must belong to one invitation.
+- The diagram allows a user to exist without an invitation while data is being entered. A foreign key plus a unique constraint cannot ensure that every user always has an invitation.
+- The two addresses are current data, not a database record limit. This scope does not need a wedding or event table.
 
-## 3. Quy ước kiểu dữ liệu
+## 3. Data type conventions
 
-Các bảng bên dưới dùng tên kiểu Prisma. `String` dự kiến lưu bằng PostgreSQL `text`, không tự đặt giới hạn độ dài khi chưa có yêu cầu.
+The tables below use Prisma type names. A `String` is expected to use PostgreSQL `text`; no length limit is added without a requirement.
 
-Đề xuất tất cả timestamp dùng `DateTime` với native type PostgreSQL `timestamptz(3)`, tương ứng `@db.Timestamptz(3)`. Không suy ra múi giờ đám cưới từ múi giờ máy phát triển. [Prisma Schema API v7 — DateTime](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#datetime).
+All timestamps should use `DateTime` with the PostgreSQL native type `timestamptz(3)`, represented by `@db.Timestamptz(3)`. Do not infer the wedding time zone from a developer machine's time zone. [Prisma Schema API v7 — DateTime](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#datetime).
 
-`created_at` lấy thời điểm tạo. CUID và `updated_at` do Prisma quản lý; SQL trực tiếp không tự hưởng hai cơ chế này. [Prisma Schema API v7 — cuid](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#cuid), [updatedAt](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#updatedat).
+`created_at` records the creation time. Prisma manages CUID values and `updated_at`; direct SQL does not automatically receive either behavior. [Prisma Schema API v7 — cuid](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#cuid), [updatedAt](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#updatedat).
 
-## 4. Chi tiết fields
+## 4. Field details
 
 ### 4.1. `users`
 
-| Field | Kiểu | Nullable | Default / constraint | Ý nghĩa |
+| Field | Type | Nullable | Default / constraint | Meaning |
 | --- | --- | --- | --- | --- |
-| `id` | `String` | Không | CUID tự sinh; primary key | Định danh khách |
-| `full_name` | `String` | Không | Không default | Tên khách do admin nhập |
-| `phone_number` | `String` | Có | `null` | Số điện thoại; giữ dạng text để bảo toàn dấu `+` và số `0` đầu |
-| `email` | `String` | Có | `null` | Email khách |
-| `created_at` | `DateTime` | Không | Thời điểm tạo | Mốc tạo record |
-| `updated_at` | `DateTime` | Không | Tự cập nhật qua Prisma | Mốc cập nhật record |
-| `deleted_at` | `DateTime` | Có | `null` | Có giá trị khi khách đã soft delete |
+| `id` | `String` | No | Generated CUID; primary key | Guest identifier |
+| `full_name` | `String` | No | No default | Guest name entered by an admin |
+| `phone_number` | `String` | Yes | `null` | Phone number; text preserves `+` and leading zeroes |
+| `email` | `String` | Yes | `null` | Guest email address |
+| `created_at` | `DateTime` | No | Creation time | Record creation timestamp |
+| `updated_at` | `DateTime` | No | Updated automatically by Prisma | Record update timestamp |
+| `deleted_at` | `DateTime` | Yes | `null` | Set when the guest is soft deleted |
 
-Đề xuất `phone_number` và `email` nullable để không bắt buộc có cả hai loại thông tin liên hệ. Không đặt unique cho tên, số điện thoại hoặc email vì chưa có yêu cầu dùng chúng làm định danh khách. Chưa bổ sung field thông tin khác hoặc metadata khi chưa có nhu cầu cụ thể.
+`phone_number` and `email` should be nullable so neither contact method is required. Names, phone numbers, and email addresses are not unique because they are not confirmed guest identifiers. Do not add other profile fields or metadata until a concrete need appears.
 
-Relation field dự kiến: `invitation`, kiểu `Invitation?`; không tạo cột trên DB.
+Proposed relation field: `invitation` with type `Invitation?`; it creates no database column.
 
 ### 4.2. `addresses`
 
-| Field | Kiểu | Nullable | Default / constraint | Ý nghĩa |
+| Field | Type | Nullable | Default / constraint | Meaning |
 | --- | --- | --- | --- | --- |
-| `id` | `String` | Không | CUID tự sinh; primary key | Định danh địa điểm |
-| `name` | `String` | Không | Không default | Tên địa điểm |
-| `address_text` | `String` | Không | Không default | Địa chỉ đầy đủ |
-| `event_at` | `DateTime` | Không | Không default | Ngày/giờ tổ chức tại địa điểm này |
-| `created_at` | `DateTime` | Không | Thời điểm tạo | Mốc tạo record |
-| `updated_at` | `DateTime` | Không | Tự cập nhật qua Prisma | Mốc cập nhật record |
+| `id` | `String` | No | Generated CUID; primary key | Venue identifier |
+| `name` | `String` | No | No default | Venue name |
+| `address_text` | `String` | No | No default | Full address |
+| `event_at` | `DateTime` | No | No default | Event date and time at this venue |
+| `created_at` | `DateTime` | No | Creation time | Record creation timestamp |
+| `updated_at` | `DateTime` | No | Updated automatically by Prisma | Record update timestamp |
 
-Không có `deleted_at`. Hai địa điểm/ngày tổ chức được nhập thành hai record riêng; không hardcode ngày hoặc tên địa điểm vào schema. Không đặt unique cho `event_at` hoặc nội dung địa chỉ.
+There is no `deleted_at`. Enter the two venues and dates as separate records; do not hardcode their dates or names into the schema. Neither `event_at` nor the address text is unique.
 
-Ngày/giờ chỉ lưu trên address, không sao chép vào invitation. Vì đây là quan hệ trực tiếp, cập nhật address sẽ cập nhật nguồn dữ liệu của tất cả invitation đang tham chiếu; model này không lưu snapshot địa điểm trên từng thiệp.
+The event date and time live only on the address and are not copied to an invitation. Because this is a direct relationship, updating an address changes the source data for every invitation that references it. The model does not keep a per-invitation venue snapshot.
 
-Relation field dự kiến: `invitations`, kiểu `Invitation[]`; không tạo cột trên DB.
+Proposed relation field: `invitations` with type `Invitation[]`; it creates no database column.
 
 ### 4.3. `invitations`
 
-| Field | Kiểu | Nullable | Default / constraint | Ý nghĩa |
+| Field | Type | Nullable | Default / constraint | Meaning |
 | --- | --- | --- | --- | --- |
-| `id` | `String` | Không | CUID tự sinh; primary key | Khóa nội bộ ổn định |
-| `code` | `String` | Không | Tự sinh; unique | Mã dùng để tìm thiệp |
-| `user_id` | `String` | Không | FK tới `users.id`; unique | Khách nhận thiệp |
-| `address_id` | `String` | Không | FK tới `addresses.id` | Địa điểm/ngày tổ chức được chọn |
-| `status` | **`String`** | Không | Không enum; chưa đặt default | Trạng thái thiệp và xác nhận tham gia |
-| `guest_count` | `Int` | Có | `null`; đề xuất giá trị không âm | Tổng số người đi, gồm cả khách nhận thiệp |
-| `created_at` | `DateTime` | Không | Thời điểm tạo | Mốc tạo thiệp |
-| `updated_at` | `DateTime` | Không | Tự cập nhật qua Prisma | Mốc cập nhật thiệp |
-| `expires_at` | `DateTime` | Không | Không default; bắt buộc cung cấp | Thời điểm hết hạn |
-| `deleted_at` | `DateTime` | Có | `null` | Có giá trị khi thiệp đã soft delete |
+| `id` | `String` | No | Generated CUID; primary key | Stable internal key |
+| `code` | `String` | No | Generated; unique | Code used to find the invitation |
+| `user_id` | `String` | No | FK to `users.id`; unique | Invited guest |
+| `address_id` | `String` | No | FK to `addresses.id` | Selected venue and event date |
+| `status` | **`String`** | No | No enum; no default yet | Invitation and attendance state |
+| `guest_count` | `Int` | Yes | `null`; proposed nonnegative value | Total attendees, including the invited guest |
+| `created_at` | `DateTime` | No | Creation time | Invitation creation timestamp |
+| `updated_at` | `DateTime` | No | Updated automatically by Prisma | Invitation update timestamp |
+| `expires_at` | `DateTime` | No | No default; required | Expiration time |
+| `deleted_at` | `DateTime` | Yes | `null` | Set when the invitation is soft deleted |
 
-Đề xuất `guest_count` nullable khi chưa ghi nhận số người đi; không mặc định là `1` theo RSVP demo và không tự đặt giới hạn tối đa. Không thiết kế CHECK liên kết `guest_count` với một giá trị `status` cụ thể vì danh sách status do bạn tự quản lý.
+`guest_count` should be nullable until an attendee count is recorded. Do not default it to the demo RSVP value of `1` or impose an unrequested maximum. Do not create a CHECK that ties `guest_count` to a particular `status`, because the application owns the status values.
 
-Quy ước đếm đã xác nhận: khách đi một mình là `1`, khách cùng một người nữa là `2`. Giá trị `0` là không có người đi; `null` là chưa ghi nhận số lượng, không đồng nghĩa với `0`.
+Confirmed counting rule: a guest attending alone is `1`, and a guest attending with one other person is `2`. A value of `0` means nobody is attending; `null` means no count has been recorded and is distinct from `0`.
 
-`expires_at` độc lập với `event_at`: không tự suy ra hạn thiệp từ ngày tổ chức. Không thêm mốc đã xem, đã phát hành hoặc đã trả lời khi chưa có yêu cầu.
+`expires_at` is independent of `event_at`; do not derive an invitation deadline from the event date. Do not add viewed, published, or responded timestamps without a requirement.
 
-Giữ `id` làm khóa cho các quan hệ; `code` là khóa tra cứu unique riêng. DB phải có unique constraint cho `code`, kể cả khi mã được tạo từ tầng khác. Thuật toán, độ dài và format của code không nằm trong plan này. Không dùng mã tăng dần hoặc integer làm primary key.
+Use `id` as the relationship key and keep `code` as a separate unique lookup key. The database must enforce uniqueness for `code`, even if another layer generates it. Code generation algorithm, length, and format are outside this plan. Do not use a sequential code or integer primary key.
 
-Yêu cầu không đổi `id`/`code` là invariant của dữ liệu. Primary key và unique constraint bảo đảm tính duy nhất, không tự ngăn việc UPDATE các giá trị này.
+The requirement that `id` and `code` cannot change is a data invariant. Primary key and unique constraints ensure uniqueness but do not prevent these values from being updated.
 
-Relation fields dự kiến: `user` (`User`), `address` (`Address`), `wishes` (`Wish[]`).
+Proposed relation fields: `user` (`User`), `address` (`Address`), and `wishes` (`Wish[]`).
 
 ### 4.4. `wishes`
 
-| Field | Kiểu | Nullable | Default / constraint | Ý nghĩa |
+| Field | Type | Nullable | Default / constraint | Meaning |
 | --- | --- | --- | --- | --- |
-| `id` | `String` | Không | CUID tự sinh; primary key | Định danh lời chúc |
-| `invitation_id` | `String` | Không | FK tới `invitations.id`; không unique | Thiệp mà lời chúc thuộc về |
-| `content` | `String` | Không | Không default | Nội dung lời chúc |
-| `created_at` | `DateTime` | Không | Thời điểm tạo | Mốc tạo lời chúc |
-| `updated_at` | `DateTime` | Không | Tự cập nhật qua Prisma | Mốc cập nhật lời chúc |
+| `id` | `String` | No | Generated CUID; primary key | Wish identifier |
+| `invitation_id` | `String` | No | FK to `invitations.id`; not unique | Invitation that owns the wish |
+| `content` | `String` | No | No default | Wish content |
+| `created_at` | `DateTime` | No | Creation time | Wish creation timestamp |
+| `updated_at` | `DateTime` | No | Updated automatically by Prisma | Wish update timestamp |
 
-Không có `deleted_at`. `invitation_id` không unique để một invitation có nhiều lời chúc.
+There is no `deleted_at`. `invitation_id` is not unique, allowing an invitation to have many wishes.
 
-Đề xuất có điều kiện: không lưu thêm `user_id` trên lời chúc nếu `invitations.user_id` được giữ bất biến sau khi tạo. Người gửi được suy ra từ `wishes.invitation_id` → `invitations.user_id` → `users.id`. Cách này tránh lưu hai liên kết có thể trỏ tới hai khách khác nhau. Đây là liên kết với user thông qua invitation, không phải một FK trực tiếp bổ sung. Nếu cho phép chuyển thiệp sang khách khác, cần điều chỉnh cách lưu tác giả như mục 9.1; quy tắc này đang chờ xác nhận.
+Conditional proposal: do not store another `user_id` on a wish if `invitations.user_id` remains immutable after creation. Derive the sender through `wishes.invitation_id` → `invitations.user_id` → `users.id`. This avoids storing two links that could identify different guests. It is a link to the user through the invitation, not an additional direct foreign key. If invitations can be reassigned, authorship storage must change as described in section 9.1; this rule still needs confirmation.
 
-FK bắt buộc bảo đảm không tồn tại lời chúc thiếu invitation hoặc tham chiếu invitation không tồn tại. FK không xác minh danh tính người thực hiện thao tác, không kiểm tra thiệp đã soft delete/hết hạn và không diễn giải `status`.
+The required foreign key prevents a wish without an invitation or a reference to a missing invitation. It does not verify the actor's identity, check whether an invitation is soft deleted or expired, or interpret `status`.
 
-Relation field dự kiến: `invitation`, kiểu `Invitation`.
+Proposed relation field: `invitation` with type `Invitation`.
 
 ## 5. Referential actions
 
-**Policy đề xuất:** ghi rõ `onUpdate: Cascade`, `onDelete: Restrict` trên cả ba foreign key. Bạn đã xác nhận loại soft/hard delete của từng bảng, nhưng chưa xác nhận riêng lựa chọn `Cascade`/`Restrict`; không xem policy này là yêu cầu đã chốt.
+**Proposed policy:** explicitly use `onUpdate: Cascade` and `onDelete: Restrict` on all three foreign keys. The soft and hard deletion behavior of each table is confirmed, but the specific `Cascade` and `Restrict` choices are not; treat this policy as a proposal.
 
-| Foreign key | Reference | `on_update` | `on_delete` | Hệ quả khi hard delete record cha |
+| Foreign key | Reference | `on_update` | `on_delete` | Result when the parent is hard deleted |
 | --- | --- | --- | --- | --- |
-| `invitations.user_id` | `users.id` | `Cascade` | `Restrict` | Chặn xóa khách nếu còn invitation tham chiếu |
-| `invitations.address_id` | `addresses.id` | `Cascade` | `Restrict` | Chặn xóa address nếu còn invitation tham chiếu |
-| `wishes.invitation_id` | `invitations.id` | `Cascade` | `Restrict` | Chặn xóa invitation nếu còn lời chúc tham chiếu |
+| `invitations.user_id` | `users.id` | `Cascade` | `Restrict` | Block deletion while invitations reference the guest |
+| `invitations.address_id` | `addresses.id` | `Cascade` | `Restrict` | Block deletion while invitations reference the address |
+| `wishes.invitation_id` | `invitations.id` | `Cascade` | `Restrict` | Block deletion while wishes reference the invitation |
 
-`Restrict` bảo toàn dữ liệu còn được tham chiếu; `Cascade` ở chiều update cập nhật FK nếu khóa được tham chiếu thay đổi. Việc xóa một lời chúc không xóa invitation hoặc user. [Prisma v7 — Referential actions](https://docs.prisma.io/docs/orm/v7/prisma-schema/data-model/relations/referential-actions).
+`Restrict` preserves referenced data; `Cascade` updates a foreign key if the referenced key changes. Deleting a wish does not delete its invitation or user. [Prisma v7 — Referential actions](https://docs.prisma.io/docs/orm/v7/prisma-schema/data-model/relations/referential-actions).
 
-Đặt `onUpdate`/`onDelete` tại ba relation sở hữu FK: `Invitation.user`, `Invitation.address`, `Wish.invitation`. Các relation ngược không khai báo lặp actions. Đây là tham số cố định của Prisma, không phải field để đổi sang snake_case. [Prisma Schema API v7 — relation](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#relation).
+Place `onUpdate` and `onDelete` on the three relations that own foreign keys: `Invitation.user`, `Invitation.address`, and `Wish.invitation`. Do not repeat actions on inverse relations. These are fixed Prisma arguments, not fields that should use snake_case. [Prisma Schema API v7 — relation](https://docs.prisma.io/docs/orm/v7/reference/prisma-schema-reference#relation).
 
-## 6. Soft delete và bảo toàn quan hệ
+## 6. Soft deletion and relationship preservation
 
-| Bảng | Cách xóa | Field hỗ trợ |
+| Table | Deletion method | Supporting field |
 | --- | --- | --- |
 | `users` | Soft delete | `deleted_at` |
 | `invitations` | Soft delete | `deleted_at` |
-| `addresses` | Hard delete, chịu FK constraint | Không có `deleted_at` |
-| `wishes` | Hard delete | Không có `deleted_at` |
+| `addresses` | Hard delete, subject to FK constraints | No `deleted_at` |
+| `wishes` | Hard delete | No `deleted_at` |
 
-Soft delete là cập nhật `deleted_at`, không phải DELETE record. Vì vậy `onDelete` không tự chạy và không tự soft delete các record con.
+A soft delete updates `deleted_at`; it does not delete the record. Therefore, `onDelete` does not run and does not soft delete child records.
 
-Các quan hệ vẫn được giữ khi khách hoặc thiệp soft delete. Chưa có yêu cầu tự soft delete invitation khi user soft delete, hoặc tự xóa lời chúc khi invitation soft delete; plan không bổ sung các quy tắc đó.
+Relationships remain intact when a guest or invitation is soft deleted. There is no requirement to soft delete an invitation when its user is soft deleted or to delete wishes when an invitation is soft deleted, so this plan does not add those rules.
 
-Unique constraint trên `user_id` và `code` áp dụng cả record đã soft delete. Soft delete một thiệp không cho phép tạo thiệp thứ hai cho cùng khách hoặc tái sử dụng code cũ. Không dùng partial unique index chỉ dành cho record chưa xóa, vì yêu cầu là một khách chỉ một thiệp.
+Unique constraints on `user_id` and `code` include soft-deleted records. Soft deleting an invitation does not allow another invitation for the same guest or reuse of its code. Do not use a partial unique index limited to active records because the requirement is one invitation per guest.
 
-Với policy `Restrict` đề xuất, address vẫn bị chặn hard delete nếu invitation đã soft delete còn tham chiếu tới nó. Record soft delete vẫn tồn tại ở DB.
+With the proposed `Restrict` policy, an address still cannot be hard deleted while a soft-deleted invitation references it. A soft-deleted record still exists in the database.
 
-## 7. Constraints và indexes tối thiểu
+## 7. Minimum constraints and indexes
 
-| Vị trí | Constraint / index | Mục đích |
+| Location | Constraint / index | Purpose |
 | --- | --- | --- |
-| `id` của cả bốn bảng | Primary key | Định danh unique |
-| `invitations.code` | Unique | Không trùng mã thiệp |
-| `invitations.user_id` | Unique + FK | Một khách tối đa một thiệp |
-| `invitations.address_id` | FK + index | Liên kết tới address và hỗ trợ truy vấn theo địa điểm |
-| `wishes.invitation_id` | FK + index | Liên kết và truy vấn lời chúc theo thiệp |
-| `invitations.guest_count` | Đề xuất CHECK không âm khi có giá trị | Tránh số người âm; vẫn cho phép `null` |
-| Các field bắt buộc ở mục 4 | NOT NULL | Bảo đảm có đủ khóa, status và timestamps bắt buộc |
+| `id` on all four tables | Primary key | Unique identification |
+| `invitations.code` | Unique | Prevent duplicate invitation codes |
+| `invitations.user_id` | Unique + FK | At most one invitation per guest |
+| `invitations.address_id` | FK + index | Link to and query by address |
+| `wishes.invitation_id` | FK + index | Link to and query wishes by invitation |
+| `invitations.guest_count` | Proposed nonnegative CHECK when present | Prevent negative counts while allowing `null` |
+| Required fields in section 4 | NOT NULL | Ensure required keys, status, and timestamps exist |
 
-Primary key và unique constraint đã tạo index tương ứng trong PostgreSQL; không thêm index trùng cho `id`, `code` hoặc `user_id`. FK không tự tạo index trên cột tham chiếu, nên đề xuất hai index riêng cho `address_id` và `invitation_id`. [PostgreSQL — Constraints](https://www.postgresql.org/docs/current/ddl-constraints.html).
+Primary key and unique constraints create their corresponding PostgreSQL indexes, so do not add duplicate indexes for `id`, `code`, or `user_id`. Foreign keys do not automatically index their referencing columns; add separate indexes for `address_id` and `invitation_id`. [PostgreSQL — Constraints](https://www.postgresql.org/docs/current/ddl-constraints.html).
 
-Chưa cần index cho mọi timestamp, thông tin liên hệ hoặc `status` khi chưa có nhu cầu truy vấn cụ thể. Không thêm DB enum, danh sách giá trị hợp lệ hoặc CHECK cho `status`.
+Do not index every timestamp, contact field, or `status` without a query requirement. Do not add a database enum, allowed-value list, or CHECK for `status`.
 
-## 8. Đối chiếu với repo hiện tại
+## 8. Comparison with the current repository
 
-Repo hiện có Prisma 7.10.0, PostgreSQL và model `Rsvp` độc lập. Model này dùng enum attendance cùng một số field camelCase; repository RSVP đang là dữ liệu demo trong bộ nhớ.
+The repository currently uses Prisma 7.10.0, PostgreSQL, and a standalone `Rsvp` model. That model uses an attendance enum and several camelCase fields; the RSVP repository currently holds in-memory demo data.
 
-Trong thiết kế mới, xác nhận tham gia và số người đi nằm trên `invitations.status` / `invitations.guest_count`; lời chúc nằm trên `wishes`. Không cần thêm bảng RSVP cho các yêu cầu đã chốt.
+In the new design, attendance state and attendee count live on `invitations.status` and `invitations.guest_count`; wishes live on `wishes`. The confirmed requirements do not need a separate RSVP table.
 
-Tài liệu này chưa quyết định migrate, giữ hay drop bảng `rsvps` hiện có. Trước khi triển khai cần kiểm tra dữ liệu DB thực tế; không suy ra DB trống chỉ vì repo chưa có thư mục migrations. Tên field mới dùng snake_case trực tiếp trong Prisma và DB, không chỉ map cột DB sang snake_case trong khi giữ field camelCase.
+This document does not decide whether to migrate, retain, or drop the existing `rsvps` table. Inspect the real database before implementation; do not assume it is empty because the repository has no migrations directory. New fields use snake_case directly in Prisma and the database, rather than mapping snake_case columns while keeping camelCase Prisma fields.
 
-Các điểm còn ở mức đề xuất để review trước khi triển khai: nullability của `phone_number`, `email`, `guest_count`; CHECK cho số người; native timestamp type; và policy referential actions tại mục 5. Không có thay đổi schema, migration, API hoặc frontend trong bước lập plan này.
+The following remain proposals for review before implementation: nullability of `phone_number`, `email`, and `guest_count`; the attendee-count CHECK; the native timestamp type; and the referential-action policy in section 5. This planning step makes no schema, migration, API, or frontend changes.
 
-## 9. Rà soát các điểm còn hở
+## 9. Open issues review
 
-Rà soát ngày 2026-10-05. Bốn bảng hiện tại đáp ứng scope đã xác nhận; chưa thấy nhu cầu thêm bảng hoặc field xác nhận tham gia. Các điểm dưới đây là giới hạn cần làm rõ hoặc đề xuất ràng buộc, chưa tự chuyển thành yêu cầu mới.
+Reviewed: 2026-10-05. The four tables satisfy the confirmed scope, and no additional attendance table or field is currently needed. The issues below are limits to clarify or proposed constraints; they are not new requirements.
 
-### 9.1. Có thể gán sai người gửi lời chúc nếu chuyển thiệp sang khách khác
+### 9.1. Reassigning an invitation can misattribute wishes
 
-Hiện `wishes` suy ra người gửi qua `invitations.user_id`. Ví dụ thiệp ban đầu thuộc khách A, A đã gửi lời chúc, sau đó `user_id` của thiệp được chuyển sang B: lời chúc cũ sẽ bị gán cho B dù `wishes` không hề được sửa. FK và unique constraint vẫn hợp lệ trong trường hợp này.
+Wishes currently derive their sender through `invitations.user_id`. For example, if an invitation originally belongs to guest A, A submits a wish, and the invitation's `user_id` is later changed to B, the old wish appears to belong to B even though the wish record was never updated. The foreign key and unique constraint remain valid in this case.
 
-Cần chốt một trong hai hướng trước khi triển khai:
+Choose one of these approaches before implementation:
 
-- Giữ nguyên khách nhận thiệp sau khi tạo: coi `invitations.user_id` là bất biến. Khi đó mô hình hiện tại đủ, không cần thêm FK tác giả trên lời chúc.
-- Cho phép chuyển thiệp sang khách khác: cần lưu người gửi độc lập trên `wishes`, ví dụ `user_id` tham chiếu `users.id`, để việc chuyển thiệp không đổi tác giả các lời chúc cũ. FK bổ sung phải ghi rõ cả referential actions. Việc kiểm tra người gửi khớp với khách của thiệp tại lúc gửi là một invariant riêng; không dùng cascade để đổi tác giả lịch sử.
+- Keep the invitation recipient immutable after creation. The current model is then sufficient and wishes need no separate author foreign key.
+- Allow reassignment. Store the sender independently on `wishes`, such as a `user_id` referencing `users.id`, so reassignment does not change historical authorship. The additional foreign key must define both referential actions. Ensuring that the sender matches the invitation guest when submitting is a separate invariant; do not use a cascade to rewrite historical authorship.
 
-Quy tắc chuyển thiệp chưa được xác nhận. Không tự thêm `wishes.user_id` vào thiết kế chính.
+The reassignment rule is unconfirmed. Do not add `wishes.user_id` to the primary design yet.
 
-### 9.2. Soft delete chưa có quy tắc về tính hợp lệ của dữ liệu liên quan
+### 9.2. Soft deletion does not define validity rules for related data
 
-User đã soft delete vẫn có thể có invitation với `deleted_at = null`; invitation đã soft delete vẫn có thể được một lời chúc mới tham chiếu. Đây đều là dữ liệu hợp lệ xét riêng theo FK, vì record cha vẫn tồn tại.
+A soft-deleted user can still have an invitation with `deleted_at = null`, and a new wish can still reference a soft-deleted invitation. Both are valid under foreign keys alone because the parent record still exists.
 
-Đề xuất invariant khi triển khai backend: không tạo dữ liệu tương tác mới cho user hoặc invitation đã soft delete; giữ các liên kết và lời chúc cũ để bảo toàn dữ liệu. Chưa tự thêm cơ chế cascade soft delete. Nếu cần bảo đảm invariant này ở DB cho mọi nguồn ghi, phải có cơ chế riêng; FK hoặc CHECK trên riêng record lời chúc không kiểm tra được trạng thái record cha.
+Proposed backend invariant: do not create new interaction data for a soft-deleted user or invitation; preserve existing relationships and wishes. Do not add cascading soft deletion without a requirement. Enforcing this invariant in the database for every writer requires a separate mechanism; a foreign key or a CHECK on the wish record cannot inspect parent-record state.
 
-`expires_at` bắt buộc chỉ bảo đảm có thời điểm hết hạn, không tự đổi `status` hoặc tự chặn ghi dữ liệu. Quy tắc hết hạn có áp dụng cho lời chúc hay không chưa được xác nhận; không suy diễn thành một constraint mới.
+Requiring `expires_at` only ensures that an expiration time exists. It does not change `status` or reject writes automatically. Whether expiration prevents wishes is unconfirmed, so do not infer a new constraint.
 
-### 9.3. NOT NULL chưa đủ để bảo đảm nội dung có giá trị
+### 9.3. NOT NULL does not guarantee meaningful content
 
-Plan hiện chưa chặn tên, địa chỉ, code hoặc lời chúc là chuỗi rỗng. Đề xuất bổ sung yêu cầu nội dung không rỗng cho `users.full_name`, `addresses.name`, `addresses.address_text`, `invitations.code`, `wishes.content`; quy tắc xử lý chuỗi chỉ có khoảng trắng cần nhất quán. `status` vẫn là `String` theo yêu cầu, không thêm danh sách giá trị hoặc DB enum.
+The plan does not prevent empty guest names, addresses, codes, or wishes. Add nonempty-content requirements for `users.full_name`, `addresses.name`, `addresses.address_text`, `invitations.code`, and `wishes.content`; handle whitespace-only values consistently. `status` remains a `String`, without an allowed-value list or database enum.
 
-Đề xuất thêm ràng buộc `expires_at > created_at` nếu thiệp luôn phải được tạo trước thời điểm hết hạn. Hiện chỉ xác nhận `expires_at` bắt buộc, chưa xác nhận điều kiện thứ tự này. Giữ đề xuất CHECK `guest_count` không âm ở mục 7.
+Consider requiring `expires_at > created_at` if invitations must always be created before their expiration time. Only the presence of `expires_at` is confirmed, not this ordering rule. Retain the proposed nonnegative `guest_count` CHECK from section 7.
 
-PostgreSQL hỗ trợ CHECK trên các giá trị cùng record; CHECK chỉ được kiểm tra khi ghi, không tự chạy lại khi thời gian trôi qua. Vì vậy không dùng CHECK phụ thuộc thời gian hiện tại để coi thiệp tự hết hạn. [PostgreSQL — Check constraints](https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-CHECK-CONSTRAINTS).
+PostgreSQL supports CHECK constraints over values in the same record. A CHECK runs when data is written and is not reevaluated as time passes, so do not use a current-time-dependent CHECK to expire invitations automatically. [PostgreSQL — Check constraints](https://www.postgresql.org/docs/current/ddl-constraints.html#DDL-CONSTRAINTS-CHECK-CONSTRAINTS).
 
-Với Prisma v7 trong repo, CHECK chưa có biểu diễn trong Prisma schema và chưa được tự sinh bởi Migrate; nếu chọn các CHECK trên, cần ghi chúng vào SQL migration. Ghi rõ phần này để tránh triển khai chỉ schema rồi tưởng DB đã có đủ constraints. [Prisma v7 — Database features](https://www.prisma.io/docs/orm/v7/reference/database-features), [customized migrations](https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/unsupported-database-features).
+In the repository's Prisma v7 version, CHECK constraints have no Prisma schema representation and are not generated by Migrate. If these checks are selected, add them to the SQL migration. This distinction prevents an implementation from changing only the schema and assuming the database has every constraint. [Prisma v7 — Database features](https://www.prisma.io/docs/orm/v7/reference/database-features), [customized migrations](https://www.prisma.io/docs/orm/v7/prisma-migrate/workflows/unsupported-database-features).
 
-### 9.4. Các định danh chưa được bảo đảm bất biến ở DB
+### 9.4. The database does not enforce identifier immutability
 
-`id` là primary key, `code` là unique vẫn có thể được UPDATE. Policy `onUpdate: Cascade` hiện đề xuất sẽ truyền thay đổi khóa cha xuống FK, không chặn thay đổi đó. Còn thay `invitations.user_id` sang một user hợp lệ khác là thay liên kết, không phải thay primary key của user; `onUpdate` trên FK không tự ngăn việc này.
+A primary-key `id` and unique `code` can still be updated. The proposed `onUpdate: Cascade` policy propagates parent-key changes to foreign keys rather than preventing them. Changing `invitations.user_id` to another valid user changes a relationship, not the user's primary key; the foreign key's `onUpdate` action does not prevent it.
 
-Cần phân biệt yêu cầu admin không được chỉnh các định danh với yêu cầu DB phải cấm mọi nguồn ghi đổi chúng. Nếu chọn bảo đảm ở DB, cần policy quyền ghi hoặc trigger phù hợp. Có thể cân nhắc `onUpdate: Restrict` để chặn thay khóa cha đang được tham chiếu, nhưng cách này vẫn không chặn đổi `code`, đổi khóa chưa có record con hoặc chuyển `user_id` của thiệp. Đây không phải lý do tự sửa tất cả actions ở mục 5. [Prisma v7 — Referential actions](https://docs.prisma.io/docs/orm/v7/prisma-schema/data-model/relations/referential-actions).
+Distinguish the rule that admins cannot edit identifiers from a database rule that blocks every writer from changing them. Database enforcement requires an appropriate write-permission policy or trigger. `onUpdate: Restrict` could block changes to referenced parent keys, but it still would not prevent changing `code`, changing an unreferenced key, or reassigning an invitation's `user_id`. This is not sufficient reason to change every action in section 5 automatically. [Prisma v7 — Referential actions](https://docs.prisma.io/docs/orm/v7/prisma-schema/data-model/relations/referential-actions).
 
-### 9.5. Unique code không bảo đảm người khác khó đoán mã
+### 9.5. A unique code is not necessarily difficult to guess
 
-Suy luận từ việc khách không đăng nhập: nếu `code` là điều kiện duy nhất để tìm thiệp và gửi lời chúc, biết mã đồng nghĩa có khả năng dùng thiệp đó. Unique constraint chỉ chống trùng dữ liệu, không bảo đảm mã khó đoán hoặc xác minh người dùng thực tế là khách được mời.
+Inference from guests not signing in: if `code` is the only requirement for finding an invitation and submitting a wish, knowing the code may grant access to that invitation. A unique constraint prevents duplicates but does not make codes unpredictable or verify that the caller is the invited guest.
 
-Đề xuất mã tự sinh cần ngẫu nhiên khó đoán nếu nó đóng vai trò quyền truy cập. Không chốt độ dài hoặc thuật toán trong bước review data model; đây là tiêu chí cần giữ khi chọn cơ chế sinh mã. [OWASP — Token entropy and randomness](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#session-id-entropy).
+Generated codes should be cryptographically difficult to guess if they act as access credentials. This data-model review does not specify a length or algorithm; retain unpredictability as a criterion when selecting the generator. [OWASP — Token entropy and randomness](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#session-id-entropy).
 
-### 9.6. Những giới hạn phù hợp với scope hiện tại
+### 9.6. Limits that fit the current scope
 
-- Unique `user_id` bảo đảm một thiệp trên mỗi record khách, kể cả đã soft delete. Muốn dùng lại thiệp cho chính khách đó thì restore record thiệp hiện có; không tạo bản thay thế để vượt unique constraint.
-- Address chỉ hard delete được khi không còn invitation tham chiếu, kể cả invitation đã soft delete. Đây là hệ quả của policy `Restrict`, không phải lỗi FK.
-- Một thiệp chỉ có một địa điểm và một số lượng người đi. Model không lưu xác nhận riêng cho từng ngày/địa điểm vì scope đã chốt một address trên mỗi thiệp.
+- Unique `user_id` ensures one invitation per guest record, including soft-deleted records. To reuse an invitation for that guest, restore the existing record instead of creating a replacement around the unique constraint.
+- An address can be hard deleted only when no invitation references it, including soft-deleted invitations. This is an effect of `Restrict`, not a foreign-key defect.
+- An invitation has one venue and one attendee count. The model does not store separate responses for each date or venue because the confirmed scope assigns one address to each invitation.

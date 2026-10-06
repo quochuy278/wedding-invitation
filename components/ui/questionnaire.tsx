@@ -3,6 +3,7 @@
 import { Questionnaire as QuestionnairePrimitive } from "@shadcn/react/questionnaire";
 import { cn } from "cn";
 import { CheckIcon } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type * as React from "react";
 import { type Button, buttonVariants } from "@/components/ui/button";
 
@@ -203,6 +204,8 @@ function QuestionnairePrevious({
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Previous> &
   Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  const t = useTranslations("Ui.questionnaire");
+
   return (
     <QuestionnairePrimitive.Previous
       data-slot="questionnaire-previous"
@@ -215,7 +218,7 @@ function QuestionnairePrevious({
       )}
       {...props}
     >
-      {children ?? "Previous"}
+      {children ?? t("previous")}
     </QuestionnairePrimitive.Previous>
   );
 }
@@ -228,6 +231,8 @@ function QuestionnaireSkip({
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Skip> &
   Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  const t = useTranslations("Ui.questionnaire");
+
   return (
     <QuestionnairePrimitive.Skip
       data-slot="questionnaire-skip"
@@ -240,7 +245,7 @@ function QuestionnaireSkip({
       )}
       {...props}
     >
-      {children ?? "Skip"}
+      {children ?? t("skip")}
     </QuestionnairePrimitive.Skip>
   );
 }
@@ -253,6 +258,8 @@ function QuestionnaireNext({
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Next> &
   Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  const t = useTranslations("Ui.questionnaire");
+
   return (
     <QuestionnairePrimitive.Next
       data-slot="questionnaire-next"
@@ -265,7 +272,7 @@ function QuestionnaireNext({
       )}
       {...props}
     >
-      {children ?? "Next"}
+      {children ?? t("next")}
     </QuestionnairePrimitive.Next>
   );
 }
@@ -278,6 +285,8 @@ function QuestionnaireSubmit({
   ...props
 }: React.ComponentProps<typeof QuestionnairePrimitive.Submit> &
   Pick<React.ComponentProps<typeof Button>, "size" | "variant">) {
+  const t = useTranslations("Ui.questionnaire");
+
   return (
     <QuestionnairePrimitive.Submit
       data-slot="questionnaire-submit"
@@ -290,7 +299,7 @@ function QuestionnaireSubmit({
       )}
       {...props}
     >
-      {children ?? "Submit"}
+      {children ?? t("submit")}
     </QuestionnairePrimitive.Submit>
   );
 }

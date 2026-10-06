@@ -118,6 +118,17 @@ only when a component uses a query hook or invokes a service. For each new featu
 add its types and service under `services/<feature>/` and its query/mutation hooks
 under `hooks/queries/`.
 
+## Internationalization
+
+The app uses `next-intl` with a fixed `vi` locale. Request configuration lives in
+`i18n/request.ts`, and the root layout provides messages to both Server and Client
+Components through `NextIntlClientProvider`.
+
+All translation keys are written in English and all Vietnamese user-facing copy
+lives in `messages/vi.json`. Keep code, comments, and documentation in English;
+add new Vietnamese interface text to the locale file instead of hardcoding it in
+components.
+
 ## Getting Started
 
 First, run the development server:
