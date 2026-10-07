@@ -4,7 +4,31 @@
     "description": "Thiệp mời cưới trực tuyến"
   },
   "HomePage": {
-    "title": "Trang chủ"
+    "brandAriaLabel": "Huy và Phụng — Trang chủ",
+    "skipToContent": "Đến phần nhập mã thiệp mời",
+    "adminLogin": "Đăng nhập",
+    "eyebrow": "Thiệp mời dành riêng cho bạn",
+    "titleLineOne": "Một lời mời,",
+    "titleLineTwo": "một ngày đặc biệt.",
+    "description": "Nhập mã thiệp mời để cùng chúng mình mở ra những khoảnh khắc đáng nhớ nhé.",
+    "help": "Bạn chưa tìm thấy mã? Hãy xem lại tin nhắn mời hoặc liên hệ Huy & Phụng nhé.",
+    "footer": "Rất mong được gặp bạn trong ngày vui của chúng mình.",
+    "artwork": {
+      "eyebrow": "Trân trọng kính mời",
+      "caption": "Một ngày thật đẹp, cùng những người thương."
+    },
+    "form": {
+      "label": "Mã thiệp mời của bạn",
+      "placeholder": "Nhập mã thiệp mời",
+      "hint": "Mã được gửi kèm trong tin nhắn mời của chúng mình.",
+      "submit": "Kiểm tra mã",
+      "checking": "Đang kiểm tra…",
+      "errors": {
+        "required": "Bạn nhập mã thiệp mời trước nhé.",
+        "invalid": "Chưa tìm thấy thiệp mời với mã này. Bạn kiểm tra lại mã nhé.",
+        "unavailable": "Chưa thể kiểm tra mã lúc này. Bạn vui lòng thử lại sau nhé."
+      }
+    }
   },
   "LoginPage": {
     "title": "Đăng nhập"
