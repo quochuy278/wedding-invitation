@@ -31,7 +31,18 @@
     }
   },
   "LoginPage": {
-    "title": "Đăng nhập"
+    "title": "Đăng nhập",
+    "metadataTitle": "Đăng nhập · Huy & Phụng",
+    "description": "Nhập email và mật khẩu để truy cập trang quản lý thiệp mời.",
+    "brandAriaLabel": "Huy và Phụng — Trang chủ",
+    "backHome": "Về trang chủ",
+    "emailLabel": "Email",
+    "emailPlaceholder": "ban@example.com",
+    "passwordLabel": "Mật khẩu",
+    "showPassword": "Hiện mật khẩu",
+    "hidePassword": "Ẩn mật khẩu",
+    "submit": "Đăng nhập",
+    "unavailable": "Chưa thể đăng nhập lúc này. Vui lòng thử lại sau."
   },
   "DashboardPage": {
     "title": "Bảng điều khiển"

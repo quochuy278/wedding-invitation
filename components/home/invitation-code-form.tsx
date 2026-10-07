@@ -1,28 +1,41 @@
 "use client";
 
 import { isAxiosError } from "axios";
-import { ArrowRight, CircleAlert, LoaderCircle } from "lucide-react";
+import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useRef, useState, useTransition } from "react";
+import {
+  type ChangeEvent,
+  type ReactElement,
+  type SubmitEvent,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCheckInvitationCode } from "@/hooks/queries/use-invitations";
+import type { ApiErrorResponse } from "@/lib/api/types";
 
-type FormError = "required" | "invalid" | "unavailable";
+type FormError = "required" | "invalid" | "unavailable" | null;
 
-export function InvitationCodeForm() {
+export function InvitationCodeForm(): ReactElement {
   const t = useTranslations("HomePage.form");
   const router = useRouter();
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<FormError | null>(null);
+  const [code, setCode] = useState<string>("");
+  const [error, setError] = useState<FormError>(null);
   const [isNavigating, startNavigation] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const checkInvitation = useCheckInvitationCode();
   const isPending = checkInvitation.isPending || isNavigating;
   const isInvalid = error === "required" || error === "invalid";
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleCodeChange(event: ChangeEvent<HTMLInputElement>): void {
+    setCode(event.currentTarget.value);
+    setError(null);
+  }
+
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
 
     if (isPending) return;
@@ -47,12 +60,12 @@ export function InvitationCodeForm() {
         return;
       }
 
-      startNavigation(() => {
+      startNavigation((): void => {
         router.push(`/invitation/${encodeURIComponent(invitation.id)}`);
       });
-    } catch (requestError) {
+    } catch (requestError: unknown) {
       setError(
-        isAxiosError(requestError) && requestError.response?.status === 404
+        isAxiosError<ApiErrorResponse>(requestError) && requestError.response?.status === 404
           ? "invalid"
           : "unavailable",
       );
@@ -73,10 +86,7 @@ export function InvitationCodeForm() {
         name="code"
         type="text"
         value={code}
-        onChange={(event) => {
-          setCode(event.target.value);
-          setError(null);
-        }}
+        onChange={handleCodeChange}
         placeholder={t("placeholder")}
         maxLength={128}
         required
@@ -105,21 +115,21 @@ export function InvitationCodeForm() {
         )}
       </div>
 
-      <Button
-        type="submit"
-        disabled={isPending}
-        className="mt-5 h-13 w-full cursor-pointer justify-between rounded-lg bg-wedding-wine px-5 font-label text-xs font-medium text-wedding-cream hover:bg-[#650d20] motion-reduce:transform-none motion-reduce:transition-none"
-      >
-        <span>{t(isPending ? "checking" : "submit")}</span>
-        {isPending ? (
-          <LoaderCircle
-            className="size-4 animate-spin motion-reduce:animate-none"
-            aria-hidden="true"
-          />
-        ) : (
-          <ArrowRight className="size-4" aria-hidden="true" />
-        )}
-      </Button>
+      <div className="mt-5 flex justify-center">
+        <Button
+          type="submit"
+          disabled={isPending}
+          className="h-13 w-fit min-w-40 cursor-pointer justify-center gap-2 rounded-lg bg-wedding-wine px-6 text-center font-label text-xs font-medium text-wedding-cream hover:bg-[#650d20] motion-reduce:transform-none motion-reduce:transition-none"
+        >
+          <span>{t(isPending ? "checking" : "submit")}</span>
+          {isPending && (
+            <LoaderCircle
+              className="size-4 animate-spin motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          )}
+        </Button>
+      </div>
     </form>
   );
 }
