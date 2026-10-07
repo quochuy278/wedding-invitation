@@ -1,11 +1,16 @@
+import { ApiErrorCode } from "@/lib/api/types";
+import { authError, getAdminSession, privateResponse } from "@/server/features/auth/auth.http";
 import { createRsvpInputSchema } from "@/server/features/rsvps/rsvp.schema";
 import { rsvpService } from "@/server/features/rsvps/rsvp.service";
 import { badRequest, ok } from "@/server/shared/http/api-response";
+import type { AuthSessionDto } from "@/shared/contracts/auth";
 
-export async function GET() {
+export async function GET(): Promise<Response> {
+  const session: AuthSessionDto | null = await getAdminSession();
+  if (!session) return authError(ApiErrorCode.Unauthorized, "Authentication required.", 401);
   const rsvps = await rsvpService.list();
 
-  return ok(rsvps);
+  return privateResponse(ok(rsvps));
 }
 
 export async function POST(request: Request) {

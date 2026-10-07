@@ -3,6 +3,17 @@
     "title": "Thiệp mời cưới",
     "description": "Thiệp mời cưới trực tuyến"
   },
+  "ApiErrors": {
+    "BAD_REQUEST": "Dữ liệu gửi lên không hợp lệ.",
+    "UNAUTHORIZED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    "FORBIDDEN": "Bạn không có quyền thực hiện thao tác này.",
+    "NOT_FOUND": "Không tìm thấy dữ liệu được yêu cầu.",
+    "CONFLICT": "Dữ liệu đã thay đổi. Vui lòng tải lại và thử lần nữa.",
+    "INVALID_CREDENTIALS": "Email hoặc mật khẩu không đúng.",
+    "RATE_LIMITED": "Bạn đã thao tác quá nhiều lần. Vui lòng thử lại sau ít phút.",
+    "UNAVAILABLE": "Dịch vụ hiện chưa sẵn sàng. Vui lòng thử lại sau.",
+    "UNKNOWN": "Đã xảy ra lỗi. Vui lòng thử lại."
+  },
   "HomePage": {
     "brandAriaLabel": "Huy và Phụng — Trang chủ",
     "skipToContent": "Đến phần nhập mã thiệp mời",
@@ -25,8 +36,7 @@
       "checking": "Đang kiểm tra…",
       "errors": {
         "required": "Bạn nhập mã thiệp mời trước nhé.",
-        "invalid": "Chưa tìm thấy thiệp mời với mã này. Bạn kiểm tra lại mã nhé.",
-        "unavailable": "Chưa thể kiểm tra mã lúc này. Bạn vui lòng thử lại sau nhé."
+        "invalid": "Chưa tìm thấy thiệp mời với mã này. Bạn kiểm tra lại mã nhé."
       }
     }
   },
@@ -42,10 +52,15 @@
     "showPassword": "Hiện mật khẩu",
     "hidePassword": "Ẩn mật khẩu",
     "submit": "Đăng nhập",
-    "unavailable": "Chưa thể đăng nhập lúc này. Vui lòng thử lại sau."
+    "submitting": "Đang đăng nhập…",
+    "checkingSession": "Đang kiểm tra phiên…"
   },
   "DashboardPage": {
-    "title": "Bảng điều khiển"
+    "title": "Bảng điều khiển",
+    "welcome": "Xin chào, {name}.",
+    "logout": "Đăng xuất",
+    "loggingOut": "Đang đăng xuất…",
+    "logoutFailed": "Chưa thể đăng xuất lúc này. Vui lòng thử lại."
   },
   "Error": {
     "title": "Đã xảy ra lỗi",

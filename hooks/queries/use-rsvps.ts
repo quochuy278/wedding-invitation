@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AxiosError } from "axios";
-import type { ApiErrorResponse } from "@/lib/api/types";
+import type { ResolvedApiError } from "@/lib/api/error-resolver";
 import { rsvpService } from "@/services/rsvps/rsvp.service";
 import type { CreateRsvpInput, Rsvp } from "@/services/rsvps/rsvp.types";
 
@@ -11,7 +10,7 @@ export const rsvpQueryKeys = {
 };
 
 export function useRsvps() {
-  return useQuery<Rsvp[], AxiosError<ApiErrorResponse>>({
+  return useQuery<Rsvp[], ResolvedApiError>({
     queryKey: rsvpQueryKeys.all,
     queryFn: ({ signal }) => rsvpService.list(signal),
   });
@@ -20,7 +19,7 @@ export function useRsvps() {
 export function useCreateRsvp() {
   const queryClient = useQueryClient();
 
-  return useMutation<Rsvp, AxiosError<ApiErrorResponse>, CreateRsvpInput>({
+  return useMutation<Rsvp, ResolvedApiError, CreateRsvpInput>({
     mutationFn: rsvpService.create,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: rsvpQueryKeys.all }),
   });

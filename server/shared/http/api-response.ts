@@ -1,35 +1,28 @@
 import "server-only";
 
-type ErrorDetail = {
-  field: string;
-  message: string;
-};
+import { ApiErrorCode, type ApiErrorDetail, type ApiErrorResponse } from "@/lib/api/types";
 
-export function ok<T>(data: T, status = 200) {
-  return Response.json({ data }, { status });
-}
-
-export function badRequest(message: string, details?: ErrorDetail[]) {
+export function ok<T>(data: T, status: number = 200): Response {
   return Response.json(
-    {
-      error: {
-        code: "BAD_REQUEST",
-        message,
-        ...(details ? { details } : {}),
-      },
-    },
-    { status: 400 },
+    { data },
+    { status, headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } },
   );
 }
 
-export function notFound(message: string) {
-  return Response.json(
-    {
-      error: {
-        code: "NOT_FOUND",
-        message,
-      },
-    },
-    { status: 404 },
-  );
+export function badRequest(message: string, details?: ApiErrorDetail[]): Response {
+  const error: ApiErrorResponse["error"] = {
+    code: ApiErrorCode.BadRequest,
+    message,
+    ...(details ? { details } : {}),
+  };
+  const body: ApiErrorResponse = { error };
+  const headers: HeadersInit = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
+  return Response.json(body, { status: 400, headers });
+}
+
+export function notFound(message: string): Response {
+  const error: ApiErrorResponse["error"] = { code: ApiErrorCode.NotFound, message };
+  const body: ApiErrorResponse = { error };
+  const headers: HeadersInit = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
+  return Response.json(body, { status: 404, headers });
 }

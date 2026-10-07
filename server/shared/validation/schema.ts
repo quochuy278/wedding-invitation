@@ -5,9 +5,9 @@ export type ValidationError = {
   message: string;
 };
 
-export type ParseResult<T> =
-  | { success: true; data: T }
-  | { success: false; errors: ValidationError[] };
+type ParseSuccess<T> = { success: true; data: T };
+type ParseFailure = { success: false; errors: ValidationError[] };
+export type ParseResult<T> = ParseSuccess<T> | ParseFailure;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

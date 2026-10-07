@@ -2,11 +2,15 @@ import { validateInvitationCodeInputSchema } from "@/server/features/invitations
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { badRequest, ok } from "@/server/shared/http/api-response";
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
+  const limited: Response | null = invitationRateLimit(request);
+  if (limited) return limited;
   let body: unknown;
 
   try {
-    body = await request.json();
+    const text: string = await request.text();
+    if (text.length > 2048) return badRequest("Request body is too large.");
+    body = JSON.parse(text);
   } catch {
     return badRequest("Request body must be valid JSON.");
   }
@@ -21,3 +25,5 @@ export async function POST(request: Request) {
 
   return ok(validation);
 }
+
+import { invitationRateLimit } from "@/server/features/invitations/invitation.http";

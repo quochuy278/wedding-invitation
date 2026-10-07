@@ -1,6 +1,5 @@
 "use client";
 
-import { isAxiosError } from "axios";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -15,20 +14,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCheckInvitationCode } from "@/hooks/queries/use-invitations";
-import type { ApiErrorResponse } from "@/lib/api/types";
+import { isApiErrorCode, type ResolvedApiError, resolveApiError } from "@/lib/api/error-resolver";
+import { ApiErrorCode } from "@/lib/api/types";
+import type { InvitationDto } from "@/shared/contracts/invitation";
 
-type FormError = "required" | "invalid" | "unavailable" | null;
+type LocalFormError = "required" | "invalid";
+type FormError = LocalFormError | ApiErrorCode | null;
 
 export function InvitationCodeForm(): ReactElement {
-  const t = useTranslations("HomePage.form");
-  const router = useRouter();
+  const t: ReturnType<typeof useTranslations> = useTranslations("HomePage.form");
+  const errorT: ReturnType<typeof useTranslations> = useTranslations("ApiErrors");
+  const router: ReturnType<typeof useRouter> = useRouter();
   const [code, setCode] = useState<string>("");
   const [error, setError] = useState<FormError>(null);
   const [isNavigating, startNavigation] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
-  const checkInvitation = useCheckInvitationCode();
-  const isPending = checkInvitation.isPending || isNavigating;
-  const isInvalid = error === "required" || error === "invalid";
+  const checkInvitation: ReturnType<typeof useCheckInvitationCode> = useCheckInvitationCode();
+  const isPending: boolean = checkInvitation.isPending || isNavigating;
+  const isInvalid: boolean = error === "required" || error === "invalid";
+  const errorMessage: string | null = error
+    ? isApiErrorCode(error)
+      ? errorT(error)
+      : t(`errors.${error}`)
+    : null;
 
   function handleCodeChange(event: ChangeEvent<HTMLInputElement>): void {
     setCode(event.currentTarget.value);
@@ -40,7 +48,7 @@ export function InvitationCodeForm(): ReactElement {
 
     if (isPending) return;
 
-    const trimmedCode = code.trim();
+    const trimmedCode: string = code.trim();
     setError(null);
 
     if (!trimmedCode) {
@@ -52,7 +60,9 @@ export function InvitationCodeForm(): ReactElement {
     setCode(trimmedCode);
 
     try {
-      const invitation = await checkInvitation.mutateAsync({ code: trimmedCode });
+      const invitation: InvitationDto | null = await checkInvitation.mutateAsync({
+        code: trimmedCode,
+      });
 
       if (!invitation) {
         setError("invalid");
@@ -64,11 +74,10 @@ export function InvitationCodeForm(): ReactElement {
         router.push(`/invitation/${encodeURIComponent(invitation.id)}`);
       });
     } catch (requestError: unknown) {
-      setError(
-        isAxiosError<ApiErrorResponse>(requestError) && requestError.response?.status === 404
-          ? "invalid"
-          : "unavailable",
-      );
+      const resolvedError: ResolvedApiError = resolveApiError(requestError);
+      const formError: FormError =
+        resolvedError.code === ApiErrorCode.NotFound ? "invalid" : resolvedError.code;
+      setError(formError);
     }
   }
 
@@ -110,7 +119,7 @@ export function InvitationCodeForm(): ReactElement {
             className="mt-3 flex items-start gap-2 text-xs leading-5 text-wedding-wine"
           >
             <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            {t(`errors.${error}`)}
+            {errorMessage}
           </p>
         )}
       </div>

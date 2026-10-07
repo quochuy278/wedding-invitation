@@ -1,22 +1,70 @@
 "use client";
 
 import { cn } from "cn";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, LoaderCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentProps, type ReactElement, type SubmitEvent, useState } from "react";
+import {
+  type ComponentProps,
+  type ReactElement,
+  type SubmitEvent,
+  useEffect,
+  useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { useAuthSession } from "@/hooks/use-auth";
+import { type ResolvedApiError, resolveApiError } from "@/lib/api/error-resolver";
+import type { ApiErrorCode } from "@/lib/api/types";
+import { login } from "@/services/auth/auth.service";
+import type { LoginInput } from "@/shared/contracts/auth";
+import { AuthStatus } from "@/stores/auth.store";
 
 type LoginFormProps = ComponentProps<"div">;
+type LoginError = ApiErrorCode | null;
 
 export function LoginForm({ className, ...props }: LoginFormProps): ReactElement {
-  const t = useTranslations("LoginPage");
+  const t: ReturnType<typeof useTranslations> = useTranslations("LoginPage");
+  const errorT: ReturnType<typeof useTranslations> = useTranslations("ApiErrors");
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [formError, setFormError] = useState<LoginError>(null);
+  const router: ReturnType<typeof useRouter> = useRouter();
+  const session: ReturnType<typeof useAuthSession> = useAuthSession();
+  const isCheckingSession: boolean =
+    session.status === AuthStatus.Idle || session.status === AuthStatus.Checking;
+  const isAuthenticated: boolean = session.status === AuthStatus.Authenticated;
+  const busy: boolean = isCheckingSession || isSubmitting || isAuthenticated;
 
-  function handleSubmit(event: SubmitEvent<HTMLFormElement>): void {
+  useEffect((): void => {
+    if (isAuthenticated) {
+      router.replace("/dashboard");
+      router.refresh();
+    }
+  }, [isAuthenticated, router]);
+
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (busy) return;
+    setFormError(null);
+    const formData: FormData = new FormData(event.currentTarget);
+    const email: FormDataEntryValue | null = formData.get("email");
+    const password: FormDataEntryValue | null = formData.get("password");
+    if (typeof email !== "string" || typeof password !== "string") return;
+    const input: LoginInput = { email, password };
+    setIsSubmitting(true);
+    try {
+      await login(input);
+      router.replace("/dashboard");
+      router.refresh();
+    } catch (error: unknown) {
+      const resolvedError: ResolvedApiError = resolveApiError(error);
+      setFormError(resolvedError.code);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function handleTogglePassword(): void {
@@ -47,6 +95,8 @@ export function LoginForm({ className, ...props }: LoginFormProps): ReactElement
                   autoComplete="username"
                   autoCapitalize="none"
                   spellCheck={false}
+                  maxLength={254}
+                  disabled={busy}
                   required
                   className="h-12 border-wedding-warm-beige/65 bg-background/40 px-3.5 font-label text-base placeholder:text-muted-foreground/60 md:text-sm"
                 />
@@ -61,6 +111,8 @@ export function LoginForm({ className, ...props }: LoginFormProps): ReactElement
                     name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
+                    maxLength={1024}
+                    disabled={busy}
                     required
                     className="h-12 border-wedding-warm-beige/65 bg-background/40 pl-3.5 pr-12 font-label text-base md:text-sm"
                   />
@@ -79,11 +131,29 @@ export function LoginForm({ className, ...props }: LoginFormProps): ReactElement
                 </div>
               </Field>
               <Field>
+                {formError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {errorT(formError)}
+                  </p>
+                )}
                 <Button
                   type="submit"
+                  disabled={busy}
                   className="h-12 cursor-pointer justify-center bg-wedding-wine px-4 font-label text-xs text-wedding-cream hover:bg-[#650d20] motion-reduce:transform-none motion-reduce:transition-none"
                 >
-                  {t("submit")}
+                  {busy && (
+                    <LoaderCircle
+                      aria-hidden="true"
+                      className="size-4 animate-spin motion-reduce:animate-none"
+                    />
+                  )}
+                  {t(
+                    isSubmitting
+                      ? "submitting"
+                      : isCheckingSession || isAuthenticated
+                        ? "checkingSession"
+                        : "submit",
+                  )}
                 </Button>
               </Field>
             </FieldGroup>
