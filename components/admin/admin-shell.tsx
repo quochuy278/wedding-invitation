@@ -7,6 +7,7 @@ import {
   MailPlusIcon,
   MapPinIcon,
   MenuIcon,
+  ScanLineIcon,
   UserRoundIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -33,7 +34,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type NavigationLabel = "overview" | "createInvitation" | "invitations" | "addresses";
+type NavigationLabel = "overview" | "createInvitation" | "invitations" | "addresses" | "scan";
 
 type NavigationItem = {
   href: string;
@@ -69,6 +70,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "invitations",
   },
   { href: "/dashboard/addresses", icon: MapPinIcon, label: "addresses" },
+  { href: "/dashboard/scan", icon: ScanLineIcon, label: "scan" },
 ];
 
 function AdminNavigationItem({ isActive, item, label }: AdminNavigationItemProps): ReactElement {

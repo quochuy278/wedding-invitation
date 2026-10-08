@@ -150,8 +150,9 @@ test("HTTP ticket displays the real guest, venue, QR and return links without ex
   ])
     assert.ok(html.includes(text), text);
   assert.ok(html.includes(`href="/invitation/${saved.code}"`));
-  assert.ok(html.includes(`download="invitation-${saved.code}-qr.png"`));
-  assert.ok(html.includes(`href="/api/invitations/${saved.code}/ticket/qr"`));
+  assert.ok(html.includes("Vé đang mở"));
+  assert.ok(!html.includes("Tải mã QR"));
+  assert.ok(!html.includes("chụp màn hình"));
   assert.ok(html.includes('content="noindex, nofollow"'));
   assert.ok(!html.includes(saved.email));
   const invitationHtml = await fetch(`${baseUrl}/invitation/${saved.code}`).then((result) =>

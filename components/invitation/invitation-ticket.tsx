@@ -1,18 +1,13 @@
-import {
-  ArrowLeft,
-  CalendarDays,
-  Clock3,
-  Download,
-  Heart,
-  MapPin,
-  ShieldCheck,
-} from "lucide-react";
+import { cn } from "cn";
+import { ArrowLeft, CalendarDays, Clock3, Heart, MapPin, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { AddressDto } from "@/shared/contracts/address";
 import type { InvitationTicketDto } from "@/shared/contracts/invitation";
 import { PaperTexture } from "./invitation-decorations";
+import styles from "./invitation-ticket.module.css";
+import { TicketLiveMarker } from "./ticket-live-marker";
 
 export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
   const t = useTranslations("InvitationTicket");
@@ -44,8 +39,12 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
   const expiryLabel = t("validUntil", { date: expiry });
   const invitationHref = `/invitation/${encodeURIComponent(invitation.code)}`;
   const qrAlt = t("qrAlt", { code: invitation.code });
-  const qrFileName = `invitation-${invitation.code}-qr.png`;
-  const qrDownloadHref = `/api/invitations/${encodeURIComponent(invitation.code)}/ticket/qr`;
+  const ticketClassName = cn(
+    styles.ticketEntry,
+    "overflow-hidden rounded-2xl border border-wedding-warm-beige/50 bg-[#fffdf8] shadow-[0_18px_60px_-30px_#7a102635]",
+  );
+  const heartClassName = cn(styles.heart, "size-8 shrink-0 text-wedding-blush sm:size-10");
+  const qrFrameClassName = cn(styles.qrFrame, "w-60 max-w-full");
 
   return (
     <div className="relative isolate flex min-h-svh flex-col overflow-clip bg-[#fbf7ef] font-body text-foreground">
@@ -91,10 +90,7 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
           </p>
         </div>
 
-        <article
-          aria-labelledby="ticket-guest"
-          className="overflow-hidden rounded-2xl border border-wedding-warm-beige/50 bg-[#fffdf8] shadow-[0_18px_60px_-30px_#7a102635]"
-        >
+        <article aria-labelledby="ticket-guest" className={ticketClassName}>
           <div className="flex items-center justify-between gap-4 bg-wedding-wine px-6 py-6 text-wedding-cream sm:px-9">
             <div>
               <p className="mb-2 font-label text-[9px] tracking-[0.2em] uppercase sm:text-[10px]">
@@ -104,11 +100,7 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
                 {couple("groom")} <span className="italic">&</span> {couple("bride")}
               </p>
             </div>
-            <Heart
-              className="size-8 shrink-0 text-wedding-blush sm:size-10"
-              strokeWidth={1}
-              aria-hidden="true"
-            />
+            <Heart className={heartClassName} strokeWidth={1} aria-hidden="true" />
           </div>
 
           <div className="grid md:grid-cols-[1fr_300px]">
@@ -190,14 +182,17 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
                 className="absolute -top-3 -right-3 size-6 rounded-full border border-wedding-warm-beige/40 bg-[#fbf7ef] md:right-auto md:left-[-12px]"
               />
               <h3 className="mb-4 font-label text-xs text-wedding-wine">{t("qrTitle")}</h3>
-              <Image
-                src={qrDataUrl}
-                alt={qrAlt}
-                width={224}
-                height={224}
-                unoptimized
-                className="h-auto w-56 max-w-full rounded-lg bg-white [image-rendering:pixelated]"
-              />
+              <div className={qrFrameClassName}>
+                <Image
+                  src={qrDataUrl}
+                  alt={qrAlt}
+                  width={224}
+                  height={224}
+                  unoptimized
+                  className="relative block h-auto w-full rounded-lg bg-white [image-rendering:pixelated]"
+                />
+              </div>
+              <TicketLiveMarker timeZone={timeZone} />
               <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-wedding-wine">
                 <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
                 {t("issuedBy")}
@@ -210,14 +205,6 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
         </article>
 
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-          <a
-            href={qrDownloadHref}
-            download={qrFileName}
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-wedding-wine px-6 font-label text-xs text-wedding-cream transition-colors hover:bg-[#650d20] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wedding-dusty-rose sm:w-auto"
-          >
-            <Download className="size-4" aria-hidden="true" />
-            {t("downloadQr")}
-          </a>
           <Link
             href={invitationHref}
             prefetch={false}
@@ -227,7 +214,7 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
           </Link>
         </div>
         <p className="mx-auto mt-5 max-w-md text-center text-xs leading-6 text-muted-foreground">
-          {t("saveHint")}
+          {t("liveHint")}
         </p>
       </main>
       <footer className="px-5 pb-6 text-center text-xs text-wedding-dusty-rose italic">
