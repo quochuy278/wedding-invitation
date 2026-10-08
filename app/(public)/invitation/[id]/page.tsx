@@ -40,10 +40,11 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
     displayDate,
     guestName: invitation.guest.fullName,
   };
+  const ticketHref = `/ticket/${encodeURIComponent(invitation.code)}`;
 
   return (
     <>
-      <InvitationHero invitation={hero} />
+      <InvitationHero invitation={hero} ticketHref={ticketHref} />
       <InvitationSchedule eventAt={invitation.address.eventAt} timeZone={timeZone} />
       <InvitationVenue venue={invitation.address} />
       <InvitationNote personalMessage={invitation.personalMessage} />

@@ -237,6 +237,7 @@
     "hero": {
       "eyebrow": "Thiệp mời dự tiệc cưới",
       "rsvp": "Xác nhận tham dự",
+      "viewTicket": "Xem vé mời",
       "welcomeLineOne": "Rất mong được gặp bạn",
       "welcomeLineTwo": "trong ngày vui của chúng mình!",
       "artworkLineOne": "Cùng nhau",
@@ -280,6 +281,31 @@
       "submit": "Gửi lời chúc",
       "closing": "Thân mến, {groom} & {bride}"
     }
+  },
+  "InvitationTicket": {
+    "metadataTitle": "Vé mời · Huy & Phụng",
+    "metadataDescription": "Vé mời của bạn với thời gian, địa điểm tổ chức và mã QR.",
+    "skipToContent": "Đến nội dung vé mời",
+    "backToInvitation": "Về thiệp mời",
+    "eyebrow": "Một ngày đặc biệt đang chờ bạn",
+    "title": "Vé mời của bạn",
+    "description": "Giữ lại chiếc vé nhỏ này, cùng chúng mình đón một ngày thật đáng nhớ.",
+    "celebration": "Thiệp mời dự tiệc cưới",
+    "guestLabel": "Trân trọng kính mời",
+    "eventDate": "Ngày tổ chức",
+    "eventTime": "Giờ đón khách",
+    "localTime": "Giờ tại địa điểm tổ chức",
+    "venueLabel": "Địa điểm tổ chức",
+    "codeLabel": "Mã thiệp mời",
+    "validUntil": "Hiệu lực đến {date}",
+    "qrTitle": "Mã QR của bạn",
+    "qrAlt": "Mã QR của vé mời {code}",
+    "issuedBy": "Được cấp bởi Huy & Phụng",
+    "qrHint": "Xuất trình mã QR khi đến dự tiệc nhé.",
+    "downloadQr": "Tải mã QR",
+    "viewInvitation": "Xem lại thiệp mời",
+    "saveHint": "Bạn có thể tải mã QR hoặc chụp màn hình vé để giữ lại.",
+    "footer": "Hẹn gặp bạn trong ngày vui của chúng mình."
   },
   "Ui": {
     "carousel": {

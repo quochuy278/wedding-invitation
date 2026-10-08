@@ -26,6 +26,12 @@ export type InvitationDto = {
   wishes: InvitationWishDto[];
 };
 
+export type InvitationTicketDto = {
+  invitation: InvitationDto;
+  qrValue: string;
+  qrDataUrl: string;
+};
+
 export const invitationPaginationDefaults = {
   page: 1,
   pageSize: 5,
