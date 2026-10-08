@@ -70,7 +70,7 @@ async function refreshTokenResponseInterceptor(error: unknown): Promise<AxiosRes
     "/auth/login",
     "/auth/refresh",
     "/auth/logout",
-    "/invitations",
+    "/invitations/",
     "/health",
   ].some((path: string): boolean => url.startsWith(path));
   if (config.authRetried || excluded) throw error;

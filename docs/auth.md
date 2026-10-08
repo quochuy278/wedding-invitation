@@ -23,7 +23,7 @@ Only the hash of the current refresh token is stored in `Session`. Rotation atom
 | `POST /api/auth/refresh` | Refresh cookie, trusted origin |
 | `POST /api/auth/logout` | Trusted origin; revokes current session |
 | `GET /api/auth/session` | Valid access token, active session and current Admin level |
-| `/dashboard`, `GET /api/rsvps` | Admin session checked on the server |
+| `/dashboard`, `GET /api/rsvps`, `GET /api/invitations` | Admin session checked on the server |
 | Invitation validation/get, health, guest RSVP submission | Public |
 
 Protected pages and API handlers must call `getAdminSession()` before reading protected data. Do not rely solely on a layout or a client UI check. Current user level, soft deletion, session expiry and revocation are checked in the database for every authorization. The Axios response interceptor refreshes on 401 and retries once. Requests in one tab share a refresh promise; the browser Web Locks API serializes refresh across tabs and checks whether another tab already refreshed. Auth session state lives in a Jotai atom and does not use the React Query cache. The signed tokens remain in HttpOnly cookies and are never exposed to client JavaScript. On browsers without Web Locks, simultaneous refresh from different tabs may revoke the session and require another login.

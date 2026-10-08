@@ -17,6 +17,7 @@ test("concurrent unauthorized requests share one refresh and retry once", async 
   let refreshCount: number = 0;
   let loginCount: number = 0;
   let permanentFailures: number = 0;
+  let invitationListRequests: number = 0;
   let refreshFails: boolean = false;
   const sessionExpiresAt: string = now().add(1, "hour").toISOString();
   const authSession: AuthSessionDto = {
@@ -38,8 +39,14 @@ test("concurrent unauthorized requests share one refresh and retry once", async 
       } else if (request.url === "/api/auth/login") {
         loginCount += 1;
         response.statusCode = 401;
-      } else if (request.url === "/api/invitations/test-code") {
+      } else if (
+        request.url === "/api/invitations/test-code" ||
+        request.url === "/api/invitations/validate"
+      ) {
         response.statusCode = 401;
+      } else if (request.url?.startsWith("/api/invitations?")) {
+        invitationListRequests += 1;
+        response.statusCode = accessValid ? 200 : 401;
       } else if (request.url === "/api/admin/always-unauthorized") {
         permanentFailures += 1;
         response.statusCode = 401;
@@ -78,15 +85,23 @@ test("concurrent unauthorized requests share one refresh and retry once", async 
     assert.deepEqual(authenticatedState.session, authSession);
     await assert.rejects(client.post<unknown>("/auth/login", {}));
     await assert.rejects(client.get<unknown>("/invitations/test-code"));
+    await assert.rejects(client.post<unknown>("/invitations/validate", { code: "test-code" }));
     assert.equal(loginCount, 1);
     assert.equal(refreshCount, 1);
     await assert.rejects(client.get<unknown>("/admin/always-unauthorized"));
     assert.equal(permanentFailures, 2);
     assert.equal(refreshCount, 1);
     accessValid = false;
+    const invitationResponse = await client.get<unknown>("/invitations", {
+      params: { page: 2, pageSize: 5 },
+    });
+    assert.equal(invitationResponse.status, 200);
+    assert.equal(invitationListRequests, 2);
+    assert.equal(refreshCount, 2);
+    accessValid = false;
     refreshFails = true;
     await assert.rejects(client.get<unknown>("/admin/data"));
-    assert.equal(refreshCount, 2);
+    assert.equal(refreshCount, 3);
     const unauthenticatedState: AuthState = authModule.authStore.get(authModule.authStateAtom);
     assert.equal(unauthenticatedState.status, authModule.AuthStatus.Unauthenticated);
     assert.equal(unauthenticatedState.session, null);

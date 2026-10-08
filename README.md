@@ -9,6 +9,7 @@ app/
   api/
     health/route.ts        # GET /api/health
     invitations/
+      route.ts             # GET /api/invitations (admin, paginated)
       [code]/route.ts      # GET /api/invitations/:code
       validate/route.ts    # POST /api/invitations/validate
     rsvps/route.ts         # GET, POST /api/rsvps
@@ -32,6 +33,18 @@ server/
 `route.ts` is the HTTP boundary. It parses the request and formats the response.
 Feature services contain business rules, while repositories are the only modules
 that should know how data is stored.
+
+`GET /api/invitations?page=1&pageSize=5` requires an active admin session. Pagination
+defaults to five records per page and supports up to 100. Invalid pagination
+parameters return `400`; requests past the last page return the last page. The
+`{ data }` response contains `items`, `pagination` (`page`, `pageSize`, `totalItems`,
+`totalPages`) and `summary` (`totalInvitations`, `acceptedInvitations`,
+`acceptedGuests`, `pendingInvitations`). Summary values cover the entire list.
+Admin lists include expired invitations and exclude soft-deleted invitations and
+users. `/dashboard/invitations` keeps the current page in client state; changing
+the page changes the React Query key and fetches that API page without navigation
+or URL changes. Reloading starts at page 1. The table shows the invitation's last
+update date, rather than a response date.
 
 The RSVP repository currently uses in-memory demo data, which resets whenever the
 server process restarts and is not suitable for deployment. Replace only

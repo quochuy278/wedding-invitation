@@ -1,6 +1,11 @@
 import "server-only";
 
-import type { InvitationCodeValidationDto, InvitationDto } from "@/shared/contracts/invitation";
+import type {
+  InvitationCodeValidationDto,
+  InvitationDto,
+  InvitationListDto,
+  InvitationListParams,
+} from "@/shared/contracts/invitation";
 import { invitationRepository, type PublicInvitationRecord } from "./invitation.repository";
 
 function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
@@ -27,6 +32,22 @@ function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
 }
 
 export const invitationService = {
+  async list(params: InvitationListParams): Promise<InvitationListDto> {
+    const result = await invitationRepository.findPage(params);
+    return {
+      ...result,
+      items: result.items.map((invitation) => ({
+        id: invitation.id,
+        code: invitation.code,
+        guestName: invitation.user.full_name,
+        phoneNumber: invitation.user.phone_number,
+        status: invitation.status,
+        guestCount: invitation.guest_count,
+        updatedAt: invitation.updated_at.toISOString(),
+      })),
+    };
+  },
+
   async validateCode(code: string): Promise<InvitationCodeValidationDto> {
     const invitation = await invitationRepository.findActiveIdByCode(code);
 

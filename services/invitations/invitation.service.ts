@@ -3,10 +3,20 @@ import type { ApiResponse } from "@/lib/api/types";
 import type {
   InvitationCodeValidationDto,
   InvitationDto,
+  InvitationListDto,
+  InvitationListParams,
   ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
 
 export const invitationService = {
+  async list(params: InvitationListParams, signal?: AbortSignal): Promise<InvitationListDto> {
+    const response = await apiClient.get<ApiResponse<InvitationListDto>>("/invitations", {
+      params,
+      signal,
+    });
+    return response.data.data;
+  },
+
   async validateCode(input: ValidateInvitationCodeInput): Promise<InvitationCodeValidationDto> {
     const response = await apiClient.post<ApiResponse<InvitationCodeValidationDto>>(
       "/invitations/validate",
