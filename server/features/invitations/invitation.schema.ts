@@ -1,12 +1,33 @@
 import "server-only";
 
 import type { ApiErrorDetail } from "@/lib/api/types";
+import { textField, timestampField } from "@/server/shared/validation/fields";
 import { isRecord, type ParseResult } from "@/server/shared/validation/schema";
 import {
+  type CreateInvitationInput,
   type InvitationListParams,
   invitationPaginationDefaults,
   type ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
+
+export function parseCreateInvitationInput(value: unknown): ParseResult<CreateInvitationInput> {
+  if (!isRecord(value))
+    return { success: false, errors: [{ field: "body", message: "Must be a JSON object." }] };
+  const errors: ApiErrorDetail[] = [];
+  const guestName = textField(value, "guestName", errors, 200);
+  const email = textField(value, "email", errors, 254).toLowerCase();
+  const phoneNumber = textField(value, "phoneNumber", errors, 50, false) || null;
+  const addressId = textField(value, "addressId", errors, 128);
+  const expiresAt = timestampField(value, "expiresAt", errors);
+  const personalMessage = textField(value, "personalMessage", errors, 2000, false) || null;
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!validEmail) errors.push({ field: "email", message: "Must be a valid email address." });
+  if (errors.length > 0) return { success: false, errors };
+  return {
+    success: true,
+    data: { guestName, email, phoneNumber, addressId, expiresAt, personalMessage },
+  };
+}
 
 export function parseInvitationListQuery(
   query: URLSearchParams,

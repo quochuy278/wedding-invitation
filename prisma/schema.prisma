@@ -39,31 +39,45 @@ model Session {
 }
 
 model Address {
-  id           String       @id @default(cuid())
-  name         String
-  address_text String
-  event_at     DateTime     @db.Timestamptz(3)
-  created_at   DateTime     @default(now()) @db.Timestamptz(3)
-  updated_at   DateTime     @updatedAt @db.Timestamptz(3)
-  invitations  Invitation[]
+  id              String       @id @default(cuid())
+  name            String
+  address_text    String
+  address_line_1  String?
+  address_line_2  String?
+  location_type   String?
+  postal_code     String?
+  city            String?
+  region          String?
+  country         String?
+  instructions    String?
+  floor           String?
+  entrance        String?
+  latitude        Float?
+  longitude       Float?
+  event_at        DateTime     @db.Timestamptz(3)
+  event_time_zone String?
+  created_at      DateTime     @default(now()) @db.Timestamptz(3)
+  updated_at      DateTime     @updatedAt @db.Timestamptz(3)
+  invitations     Invitation[]
 
   @@map("addresses")
 }
 
 model Invitation {
-  id          String    @id @default(cuid())
-  code        String    @unique @default(cuid())
-  user_id     String    @unique
-  address_id  String
-  status      String
-  guest_count Int       @default(1)
-  created_at  DateTime  @default(now()) @db.Timestamptz(3)
-  updated_at  DateTime  @updatedAt @db.Timestamptz(3)
-  expires_at  DateTime  @db.Timestamptz(3)
-  deleted_at  DateTime? @db.Timestamptz(3)
-  user        User      @relation(fields: [user_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
-  address     Address   @relation(fields: [address_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
-  wishes      Wish[]
+  id               String    @id @default(cuid())
+  code             String    @unique @default(cuid())
+  user_id          String    @unique
+  address_id       String
+  status           String
+  guest_count      Int       @default(1)
+  personal_message String?
+  created_at       DateTime  @default(now()) @db.Timestamptz(3)
+  updated_at       DateTime  @updatedAt @db.Timestamptz(3)
+  expires_at       DateTime  @db.Timestamptz(3)
+  deleted_at       DateTime? @db.Timestamptz(3)
+  user             User      @relation(fields: [user_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  address          Address   @relation(fields: [address_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
+  wishes           Wish[]
 
   @@index([address_id])
   @@map("invitations")

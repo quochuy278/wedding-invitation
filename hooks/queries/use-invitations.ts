@@ -1,9 +1,16 @@
 "use client";
 
-import { type UseMutationResult, useMutation, useQuery } from "@tanstack/react-query";
+import {
+  type UseMutationResult,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { ResolvedApiError } from "@/lib/api/error-resolver";
 import { invitationService } from "@/services/invitations/invitation.service";
 import type {
+  CreatedInvitationDto,
+  CreateInvitationInput,
   InvitationDto,
   InvitationListDto,
   InvitationListParams,
@@ -14,6 +21,18 @@ export const invitationQueryKeys = {
   all: ["invitations"] as const,
   list: (params: InvitationListParams) => [...invitationQueryKeys.all, "list", params] as const,
 };
+
+export function useCreateInvitation() {
+  const queryClient = useQueryClient();
+  async function handleCreatedInvitation(): Promise<void> {
+    const filters = { queryKey: invitationQueryKeys.all };
+    await queryClient.invalidateQueries(filters);
+  }
+  return useMutation<CreatedInvitationDto, ResolvedApiError, CreateInvitationInput>({
+    mutationFn: invitationService.create,
+    onSuccess: handleCreatedInvitation,
+  });
+}
 
 export function useInvitations(params: InvitationListParams) {
   return useQuery<InvitationListDto, ResolvedApiError>({

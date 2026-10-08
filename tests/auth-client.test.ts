@@ -18,6 +18,8 @@ test("concurrent unauthorized requests share one refresh and retry once", async 
   let loginCount: number = 0;
   let permanentFailures: number = 0;
   let invitationListRequests: number = 0;
+  let invitationCreateRequests: number = 0;
+  let addressCreateRequests: number = 0;
   let refreshFails: boolean = false;
   const sessionExpiresAt: string = now().add(1, "hour").toISOString();
   const authSession: AuthSessionDto = {
@@ -46,6 +48,12 @@ test("concurrent unauthorized requests share one refresh and retry once", async 
         response.statusCode = 401;
       } else if (request.url?.startsWith("/api/invitations?")) {
         invitationListRequests += 1;
+        response.statusCode = accessValid ? 200 : 401;
+      } else if (request.url === "/api/invitations" && request.method === "POST") {
+        invitationCreateRequests += 1;
+        response.statusCode = accessValid ? 200 : 401;
+      } else if (request.url === "/api/addresses" && request.method === "POST") {
+        addressCreateRequests += 1;
         response.statusCode = accessValid ? 200 : 401;
       } else if (request.url === "/api/admin/always-unauthorized") {
         permanentFailures += 1;
@@ -99,9 +107,17 @@ test("concurrent unauthorized requests share one refresh and retry once", async 
     assert.equal(invitationListRequests, 2);
     assert.equal(refreshCount, 2);
     accessValid = false;
+    assert.equal((await client.post<unknown>("/invitations", {})).status, 200);
+    assert.equal(invitationCreateRequests, 2);
+    assert.equal(refreshCount, 3);
+    accessValid = false;
+    assert.equal((await client.post<unknown>("/addresses", {})).status, 200);
+    assert.equal(addressCreateRequests, 2);
+    assert.equal(refreshCount, 4);
+    accessValid = false;
     refreshFails = true;
     await assert.rejects(client.get<unknown>("/admin/data"));
-    assert.equal(refreshCount, 3);
+    assert.equal(refreshCount, 5);
     const unauthenticatedState: AuthState = authModule.authStore.get(authModule.authStateAtom);
     assert.equal(unauthenticatedState.status, authModule.AuthStatus.Unauthenticated);
     assert.equal(unauthenticatedState.session, null);

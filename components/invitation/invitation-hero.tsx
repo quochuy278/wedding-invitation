@@ -1,12 +1,11 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import type { InvitationData } from "@/lib/dummy-invitation";
 import ribbonBowImage from "@/public/assets/images/ornament-ribbon-bow.png";
 import { HeartDivider, InvitationHeartIcon } from "./heart-divider";
 import { InvitationButton } from "./invitation-button";
 import { Botanical } from "./invitation-decorations";
 
-type HeroInvitation = Pick<InvitationData, "date">;
+type HeroInvitation = { date: string; displayDate: string; guestName: string };
 
 export function InvitationHero({ invitation }: { invitation: HeroInvitation }) {
   const t = useTranslations("Invitation.hero");
@@ -33,8 +32,9 @@ export function InvitationHero({ invitation }: { invitation: HeroInvitation }) {
           className="mb-4 block font-label text-[27px] tracking-[0.18em] text-wedding-wine"
           dateTime={invitation.date}
         >
-          {t("displayDate")}
+          {invitation.displayDate}
         </time>
+        <p className="mb-4 text-base font-medium">{t("guest", { name: invitation.guestName })}</p>
         <InvitationButton id="rsvp">{t("rsvp")}</InvitationButton>
         <p className="mt-3 text-[14px] leading-[1.5] sm:text-[15px]">
           {t("welcomeLineOne")}

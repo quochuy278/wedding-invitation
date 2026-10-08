@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 import { HeartDivider } from "./heart-divider";
 import { EnvelopeIllustration } from "./invitation-icons";
 
-export function InvitationNote() {
+export function InvitationNote({ personalMessage }: { personalMessage: string | null }) {
   const t = useTranslations("Invitation.note");
 
   return (
@@ -20,13 +20,17 @@ export function InvitationNote() {
       <HeartDivider />
       <div className="flex min-h-[90px] items-center justify-center gap-3">
         <EnvelopeIllustration />
-        <p className="text-[15px] leading-[1.4]">
-          {t("lineOne")}
-          <br />
-          {t("lineTwo")}
-          <br />
-          {t("lineThree")}
-        </p>
+        {personalMessage ? (
+          <p className="whitespace-pre-line text-[15px] leading-[1.4]">{personalMessage}</p>
+        ) : (
+          <p className="text-[15px] leading-[1.4]">
+            {t("lineOne")}
+            <br />
+            {t("lineTwo")}
+            <br />
+            {t("lineThree")}
+          </p>
+        )}
       </div>
     </section>
   );

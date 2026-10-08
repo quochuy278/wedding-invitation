@@ -18,14 +18,11 @@ export type InvitationDto = {
   status: string;
   guestCount: number;
   expiresAt: string;
+  personalMessage: string | null;
   guest: {
     fullName: string;
   };
-  address: {
-    name: string;
-    addressText: string;
-    eventAt: string;
-  };
+  address: AddressDto;
   wishes: InvitationWishDto[];
 };
 
@@ -63,3 +60,26 @@ export type InvitationListDto = {
     pendingInvitations: number;
   };
 };
+
+export type CreateInvitationInput = {
+  guestName: string;
+  email: string;
+  phoneNumber: string | null;
+  addressId: string;
+  expiresAt: string;
+  personalMessage: string | null;
+};
+
+export type CreatedInvitationDto = {
+  id: string;
+  code: string;
+  status: string;
+  guestName: string;
+  email: string;
+  phoneNumber: string | null;
+  address: AddressDto;
+  expiresAt: string;
+  personalMessage: string | null;
+};
+
+import type { AddressDto } from "./address";

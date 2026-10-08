@@ -71,7 +71,8 @@
       "createInvitation": "Tạo thiệp mời",
       "invitations": "Danh sách thiệp mời",
       "administrator": "Quản trị viên",
-      "toggle": "Mở hoặc thu gọn thanh điều hướng"
+      "toggle": "Mở hoặc thu gọn thanh điều hướng",
+      "addresses": "Địa điểm tổ chức"
     },
     "overview": {
       "title": "Tổng quan",
@@ -93,38 +94,44 @@
     },
     "createInvitation": {
       "title": "Tạo thiệp mời",
-      "demo": "Giao diện mẫu",
-      "description": "Chuẩn bị thông tin thiệp riêng cho từng khách trước khi gửi đường dẫn mời.",
+      "description": "Tạo thiệp riêng cho khách và chọn địa điểm tổ chức đã lưu.",
       "formTitle": "Thông tin khách mời",
-      "formDescription": "Các trường dưới đây hiện chỉ dùng để minh họa giao diện.",
+      "formDescription": "Lưu thông tin khách, địa điểm và hạn phản hồi để tạo mã thiệp riêng.",
       "guestName": "Tên khách mời",
       "guestNamePlaceholder": "Ví dụ: Nguyễn Văn An",
       "phone": "Số điện thoại",
       "phonePlaceholder": "090 123 4567",
       "email": "Email",
       "emailPlaceholder": "khachmoi@example.com",
-      "emailHint": "Không bắt buộc nếu bạn gửi thiệp bằng tin nhắn.",
-      "guestLimit": "Số khách tối đa",
-      "guestLimitHint": "Số người khách mời có thể xác nhận tham dự.",
-      "guestGroup": "Nhóm khách",
-      "groupFamily": "Gia đình",
-      "groupFriends": "Bạn bè",
-      "groupColleagues": "Đồng nghiệp",
-      "groupOther": "Khác",
-      "responseDeadline": "Hạn phản hồi",
+      "emailHint": "Email được lưu cùng khách mời để chuẩn bị gửi thiệp sau này.",
+      "responseDeadline": "Hạn phản hồi — ngày giờ",
       "personalMessage": "Lời nhắn riêng",
       "messagePlaceholder": "Viết một lời nhắn ngắn dành riêng cho khách mời…",
       "messageHint": "Lời nhắn sẽ xuất hiện trong thiệp mời của khách.",
       "reset": "Xóa nội dung",
       "create": "Tạo mã thiệp mời",
-      "previewTitle": "Xem trước thiệp",
-      "previewDescription": "Bản xem trước sẽ cập nhật khi kết nối dữ liệu sau này.",
-      "previewEyebrow": "Trân trọng kính mời",
-      "previewGuest": "Thân mời",
+      "previewTitle": "Thông tin thiệp",
+      "previewDescription": "Mã và đường dẫn xuất hiện sau khi lưu thiệp thành công.",
       "previewCode": "Mã thiệp",
       "preview": "Xem thiệp",
       "copyLink": "Sao chép link",
-      "demoNotice": "Các nút hiện chưa lưu hoặc gửi dữ liệu."
+      "address": "Địa điểm tổ chức",
+      "chooseAddress": "Chọn địa điểm",
+      "createAddress": "Tạo địa điểm mới",
+      "loadingAddresses": "Đang tải địa điểm…",
+      "noAddresses": "Bạn cần tạo địa điểm tổ chức trước khi tạo thiệp.",
+      "retry": "Thử lại",
+      "emailNotSent": "Bản này chỉ lưu thiệp và email khách. Email chưa được gửi.",
+      "creating": "Đang tạo thiệp…",
+      "created": "Đã lưu thiệp mời",
+      "copied": "Đã sao chép",
+      "copyFailed": "Chưa thể sao chép. Bạn có thể mở thiệp và sao chép đường dẫn.",
+      "contactConflict": "Email hoặc số điện thoại này đã thuộc về một khách / tài khoản khác.",
+      "duplicateContact": "Thông tin liên hệ này đã được sử dụng.",
+      "invalidDeadline": "Nhập ngày giờ hợp lệ trong tương lai.",
+      "invalidAddress": "Địa điểm không còn tồn tại. Vui lòng chọn lại.",
+      "invalidField": "Kiểm tra lại thông tin của trường này.",
+      "timezoneHint": "Thời gian theo múi giờ {timezone}."
     },
     "invitations": {
       "title": "Danh sách thiệp mời",
@@ -146,6 +153,53 @@
       "pending": "Đang chờ",
       "declined": "Từ chối",
       "range": "Hiển thị {from}–{to} trong tổng số {total} thiệp"
+    },
+    "addresses": {
+      "title": "Địa điểm tổ chức",
+      "description": "Lưu địa điểm và ngày giờ tổ chức để dùng cho các thiệp mời.",
+      "createTitle": "Tạo địa điểm",
+      "createDescription": "Nhập địa chỉ rõ ràng và hướng dẫn để khách tìm đúng nơi tổ chức.",
+      "detailsTitle": "Thông tin địa điểm",
+      "requiredHint": "Tên, ngày giờ, địa chỉ đầy đủ, dòng địa chỉ 1, mã bưu chính, thành phố, quốc gia và loại địa điểm là bắt buộc.",
+      "name": "Tên địa điểm",
+      "eventAt": "Ngày giờ tổ chức",
+      "timezoneHint": "Thời gian theo múi giờ {timezone}.",
+      "addressText": "Địa chỉ đầy đủ",
+      "addressTextHint": "Giữ nguyên cách viết địa chỉ đầy đủ. Các trường chi tiết không tự ghi đè nội dung này.",
+      "addressLine1": "Địa chỉ dòng 1",
+      "addressLine2": "Địa chỉ dòng 2 (tùy chọn)",
+      "postalCode": "Mã bưu chính",
+      "city": "Thành phố",
+      "region": "Tỉnh / bang (tùy chọn)",
+      "country": "Quốc gia",
+      "locationType": "Loại địa điểm",
+      "chooseType": "Chọn loại địa điểm",
+      "types": {
+        "building": "Tòa nhà",
+        "hotel": "Khách sạn",
+        "restaurant": "Nhà hàng",
+        "house": "Nhà riêng",
+        "eventVenue": "Trung tâm sự kiện",
+        "other": "Khác"
+      },
+      "floor": "Tầng (tùy chọn)",
+      "entrance": "Cổng / lối vào (tùy chọn)",
+      "instructions": "Hướng dẫn đến địa điểm (tùy chọn)",
+      "latitude": "Vĩ độ — lat (tùy chọn)",
+      "longitude": "Kinh độ — lng (tùy chọn)",
+      "coordinatesHint": "Nhập cả lat và lng hoặc để trống cả hai. Tọa độ chưa được tra cứu hay xác minh qua bản đồ.",
+      "save": "Lưu địa điểm",
+      "saving": "Đang lưu…",
+      "saved": "Đã lưu địa điểm",
+      "reset": "Xóa nội dung",
+      "useForInvitation": "Tạo thiệp tại địa điểm này",
+      "loading": "Đang tải địa điểm…",
+      "empty": "Chưa có địa điểm. Tạo địa điểm trước khi tạo thiệp mời.",
+      "retry": "Thử lại",
+      "invalidField": "Kiểm tra lại thông tin của trường này.",
+      "floorValue": "Tầng: {value}",
+      "entranceValue": "Lối vào: {value}",
+      "eventTimeZone": "Múi giờ tổ chức"
     }
   },
   "Error": {
@@ -161,7 +215,7 @@
   "Invitation": {
     "metadata": {
       "title": "Thiệp mời cưới · Huy & Phụng",
-      "description": "Cùng Huy & Phụng viết nên một chương mới. Trân trọng mời bạn chung vui ngày 19.09.2026."
+      "description": "Thiệp mời của Huy & Phụng. Xem thời gian, địa điểm và hướng dẫn tham dự."
     },
     "couple": {
       "groom": "Huy",
@@ -182,13 +236,13 @@
     },
     "hero": {
       "eyebrow": "Thiệp mời dự tiệc cưới",
-      "displayDate": "19.09.2026",
       "rsvp": "Xác nhận tham dự",
       "welcomeLineOne": "Rất mong được gặp bạn",
       "welcomeLineTwo": "trong ngày vui của chúng mình!",
       "artworkLineOne": "Cùng nhau",
       "artworkLineTwo": "đến một chương mới!",
-      "artworkLineThree": "của cuộc đời"
+      "artworkLineThree": "của cuộc đời",
+      "guest": "Trân trọng mời {name}"
     },
     "schedule": {
       "heading": "Thông tin buổi tiệc",
@@ -209,11 +263,10 @@
     },
     "venue": {
       "heading": "Địa điểm tổ chức",
-      "name": "Nhà hàng Hoàng Gia",
-      "street": "Số 12 Nguyễn Du, Quận 1,",
-      "city": "TP. Hồ Chí Minh",
       "imageAlt": "Minh họa tiệc cưới trong khu vườn với hoa và dây đèn",
-      "viewMap": "Xem bản đồ"
+      "viewMap": "Xem bản đồ",
+      "floor": "Tầng: {value}",
+      "entrance": "Lối vào: {value}"
     },
     "note": {
       "heading": "Lời nhắn nhỏ",

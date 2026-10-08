@@ -5,6 +5,7 @@ import {
   LayoutDashboardIcon,
   ListChecksIcon,
   MailPlusIcon,
+  MapPinIcon,
   MenuIcon,
   UserRoundIcon,
 } from "lucide-react";
@@ -32,7 +33,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type NavigationLabel = "overview" | "createInvitation" | "invitations";
+type NavigationLabel = "overview" | "createInvitation" | "invitations" | "addresses";
 
 type NavigationItem = {
   href: string;
@@ -67,6 +68,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
     icon: ListChecksIcon,
     label: "invitations",
   },
+  { href: "/dashboard/addresses", icon: MapPinIcon, label: "addresses" },
 ];
 
 function AdminNavigationItem({ isActive, item, label }: AdminNavigationItemProps): ReactElement {
@@ -113,13 +115,18 @@ function AdminSidebarTrigger(): ReactElement {
 export function AdminShell({ children, fullName }: AdminShellProps): ReactElement {
   const pathname: string = usePathname();
   const t: ReturnType<typeof useTranslations> = useTranslations("Admin.sidebar");
+  function isNavigationItemActive(item: NavigationItem): boolean {
+    const matchesExact = item.href === pathname;
+    const nestedAddressPath = `${item.href}/`;
+    const matchesAddressPage = item.label === "addresses" && pathname.startsWith(nestedAddressPath);
+    return matchesExact || matchesAddressPage;
+  }
   const activeItem: NavigationItem =
-    NAVIGATION_ITEMS.find((item: NavigationItem): boolean => item.href === pathname) ??
-    NAVIGATION_ITEMS[0];
+    NAVIGATION_ITEMS.find(isNavigationItemActive) ?? NAVIGATION_ITEMS[0];
 
   function renderNavigationItem(item: NavigationItem): ReactElement {
     const label: string = t(item.label);
-    const isActive: boolean = item.href === pathname;
+    const isActive: boolean = isNavigationItemActive(item);
 
     return <AdminNavigationItem isActive={isActive} item={item} key={item.href} label={label} />;
   }

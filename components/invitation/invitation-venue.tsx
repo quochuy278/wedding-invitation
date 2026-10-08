@@ -1,13 +1,22 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import type { InvitationData } from "@/lib/dummy-invitation";
 import venueGardenImage from "@/public/assets/images/illustration-venue-garden.png";
+import type { AddressDto } from "@/shared/contracts/address";
 import { HeartDivider } from "./heart-divider";
 import { InvitationButton } from "./invitation-button";
 import { LocationPinIcon } from "./invitation-icons";
 
-export function InvitationVenue({ venue }: { venue: InvitationData["venue"] }) {
+export function InvitationVenue({ venue }: { venue: AddressDto }) {
   const t = useTranslations("Invitation.venue");
+  const hasCoordinates = venue.latitude !== null && venue.longitude !== null;
+  const mapQuery = hasCoordinates ? `${venue.latitude},${venue.longitude}` : venue.addressText;
+  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const locality = [venue.postalCode, venue.city, venue.region, venue.country]
+    .filter(Boolean)
+    .join(", ");
+  const floor = venue.floor ? t("floor", { value: venue.floor }) : null;
+  const entrance = venue.entrance ? t("entrance", { value: venue.entrance }) : null;
+  const access = [floor, entrance].filter(Boolean).join(" · ");
 
   return (
     <section
@@ -37,16 +46,19 @@ export function InvitationVenue({ venue }: { venue: InvitationData["venue"] }) {
         </h2>
         <HeartDivider />
         <h3 className="mt-3 mb-1 font-heading text-[27px] font-normal text-wedding-wine sm:text-[clamp(23px,2.8vw,29px)]">
-          {t("name")}
+          {venue.name}
         </h3>
-        <address className="mb-4 text-[15px] leading-[1.5] not-italic lg:text-[17px]">
-          {t("street")}
-          <br />
-          {t("city")}
+        <address className="mb-4 space-y-1 whitespace-pre-line text-[15px] leading-[1.5] not-italic lg:text-[17px]">
+          <p>{venue.addressText}</p>
+          {venue.addressLine1 && <p>{venue.addressLine1}</p>}
+          {venue.addressLine2 && <p>{venue.addressLine2}</p>}
+          {locality && <p>{locality}</p>}
+          {access && <p>{access}</p>}
+          {venue.instructions && <p>{venue.instructions}</p>}
         </address>
         <InvitationButton
           nativeButton={false}
-          render={<a href={venue.mapUrl} target="_blank" rel="noopener noreferrer" />}
+          render={<a href={mapUrl} target="_blank" rel="noopener noreferrer" />}
           leadingIcon={<LocationPinIcon className="[&_img]:brightness-0 [&_img]:invert" />}
           className="min-w-[230px] gap-4"
         >
