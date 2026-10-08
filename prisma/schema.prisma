@@ -65,7 +65,7 @@ model Address {
 
 model Invitation {
   id               String    @id @default(cuid())
-  code             String    @unique @default(cuid())
+  code             String    @unique
   user_id          String    @unique
   address_id       String
   status           String

@@ -1,3 +1,4 @@
+import { invitationRateLimit } from "@/server/features/invitations/invitation.http";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { notFound, ok } from "@/server/shared/http/api-response";
 
@@ -8,7 +9,6 @@ export async function GET(
   const limited: Response | null = invitationRateLimit(request);
   if (limited) return limited;
   const { code } = await context.params;
-  if (!code || code.length > 128) return notFound("Invitation not found.");
   const invitation = await invitationService.getByCode(code);
 
   if (!invitation) {
@@ -17,5 +17,3 @@ export async function GET(
 
   return ok(invitation);
 }
-
-import { invitationRateLimit } from "@/server/features/invitations/invitation.http";

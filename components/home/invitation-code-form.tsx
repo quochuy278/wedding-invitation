@@ -4,7 +4,7 @@ import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
-  type ChangeEvent,
+  type ClipboardEvent,
   type ReactElement,
   type SubmitEvent,
   useRef,
@@ -12,14 +12,22 @@ import {
   useTransition,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useCheckInvitationCode } from "@/hooks/queries/use-invitations";
 import { isApiErrorCode, type ResolvedApiError, resolveApiError } from "@/lib/api/error-resolver";
 import { ApiErrorCode } from "@/lib/api/types";
 import type { InvitationDto } from "@/shared/contracts/invitation";
+import {
+  invitationCodeInputPattern,
+  invitationCodeLength,
+  isInvitationCode,
+  isInvitationCodeInput,
+  normalizeInvitationCode,
+} from "@/shared/utils/invitation-code";
 
-type LocalFormError = "required" | "invalid";
+type LocalFormError = "required" | "format" | "invalid";
 type FormError = LocalFormError | ApiErrorCode | null;
+const codeSlotIndices = [0, 1, 2, 3, 4, 5];
 
 export function InvitationCodeForm(): ReactElement {
   const t: ReturnType<typeof useTranslations> = useTranslations("HomePage.form");
@@ -31,16 +39,39 @@ export function InvitationCodeForm(): ReactElement {
   const inputRef = useRef<HTMLInputElement>(null);
   const checkInvitation: ReturnType<typeof useCheckInvitationCode> = useCheckInvitationCode();
   const isPending: boolean = checkInvitation.isPending || isNavigating;
-  const isInvalid: boolean = error === "required" || error === "invalid";
+  const isInvalid: boolean = error === "required" || error === "format" || error === "invalid";
+  const inputDescription: string = error
+    ? "invitation-code-hint invitation-code-error"
+    : "invitation-code-hint";
+  const submitLabel: string = t(isPending ? "checking" : "submit");
   const errorMessage: string | null = error
     ? isApiErrorCode(error)
       ? errorT(error)
       : t(`errors.${error}`)
     : null;
 
-  function handleCodeChange(event: ChangeEvent<HTMLInputElement>): void {
-    setCode(event.currentTarget.value);
+  function handleCodeChange(value: string): void {
+    setCode(normalizeInvitationCode(value));
     setError(null);
+  }
+
+  function handleCodePaste(event: ClipboardEvent<HTMLInputElement>): void {
+    const pastedCode = normalizeInvitationCode(event.clipboardData.getData("text"));
+    if (isInvitationCodeInput(pastedCode)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setError("format");
+  }
+
+  function renderCodeSlot(index: number): ReactElement {
+    return (
+      <InputOTPSlot
+        key={index}
+        index={index}
+        aria-invalid={isInvalid}
+        className="h-14 min-w-0 flex-1 rounded-lg border border-wedding-warm-beige/65 bg-card font-label text-xl text-wedding-wine first:rounded-lg last:rounded-lg"
+      />
+    );
   }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
@@ -48,20 +79,26 @@ export function InvitationCodeForm(): ReactElement {
 
     if (isPending) return;
 
-    const trimmedCode: string = code.trim();
+    const normalizedCode: string = normalizeInvitationCode(code);
     setError(null);
 
-    if (!trimmedCode) {
+    if (!normalizedCode) {
       setError("required");
       inputRef.current?.focus();
       return;
     }
 
-    setCode(trimmedCode);
+    if (!isInvitationCode(normalizedCode)) {
+      setError("format");
+      inputRef.current?.focus();
+      return;
+    }
+
+    setCode(normalizedCode);
 
     try {
       const invitation: InvitationDto | null = await checkInvitation.mutateAsync({
-        code: trimmedCode,
+        code: normalizedCode,
       });
 
       if (!invitation) {
@@ -70,9 +107,8 @@ export function InvitationCodeForm(): ReactElement {
         return;
       }
 
-      startNavigation((): void => {
-        router.push(`/invitation/${encodeURIComponent(invitation.id)}`);
-      });
+      const invitationHref = `/invitation/${encodeURIComponent(invitation.code)}`;
+      startNavigation((): void => router.push(invitationHref));
     } catch (requestError: unknown) {
       const resolvedError: ResolvedApiError = resolveApiError(requestError);
       const formError: FormError =
@@ -89,25 +125,32 @@ export function InvitationCodeForm(): ReactElement {
       >
         {t("label")}
       </label>
-      <Input
+      <InputOTP
         ref={inputRef}
         id="invitation-code"
         name="code"
         type="text"
         value={code}
         onChange={handleCodeChange}
-        placeholder={t("placeholder")}
-        maxLength={128}
+        onPasteCapture={handleCodePaste}
+        pasteTransformer={normalizeInvitationCode}
+        pattern={invitationCodeInputPattern}
+        maxLength={invitationCodeLength}
         required
         autoComplete="off"
-        autoCapitalize="none"
+        autoCapitalize="characters"
+        inputMode="text"
         spellCheck={false}
         enterKeyHint="go"
         readOnly={isPending}
         aria-invalid={isInvalid}
-        aria-describedby={`invitation-code-hint${error ? " invitation-code-error" : ""}`}
-        className="h-14 rounded-lg border-wedding-warm-beige/65 bg-card px-4 font-label text-base placeholder:text-muted-foreground/60 md:text-sm"
-      />
+        aria-describedby={inputDescription}
+        containerClassName="w-full"
+      >
+        <InputOTPGroup className="w-full max-w-sm gap-2" aria-hidden="true">
+          {codeSlotIndices.map(renderCodeSlot)}
+        </InputOTPGroup>
+      </InputOTP>
       <p id="invitation-code-hint" className="mt-2 text-[11px] leading-5 text-muted-foreground">
         {t("hint")}
       </p>
@@ -130,7 +173,7 @@ export function InvitationCodeForm(): ReactElement {
           disabled={isPending}
           className="h-13 w-fit min-w-40 cursor-pointer justify-center gap-2 rounded-lg bg-wedding-wine px-6 text-center font-label text-xs font-medium text-wedding-cream hover:bg-[#650d20] motion-reduce:transform-none motion-reduce:transition-none"
         >
-          <span>{t(isPending ? "checking" : "submit")}</span>
+          <span>{submitLabel}</span>
           {isPending && (
             <LoaderCircle
               className="size-4 animate-spin motion-reduce:animate-none"

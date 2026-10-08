@@ -9,6 +9,7 @@ import {
   invitationPaginationDefaults,
   type ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
+import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
 
 export function parseCreateInvitationInput(value: unknown): ParseResult<CreateInvitationInput> {
   if (!isRecord(value))
@@ -72,12 +73,12 @@ export function validateInvitationCodeInputSchema(
     };
   }
 
-  const code = typeof value.code === "string" ? value.code.trim() : "";
+  const code = typeof value.code === "string" ? normalizeInvitationCode(value.code) : "";
 
-  if (code.length === 0 || code.length > 128) {
+  if (!isInvitationCode(code)) {
     return {
       success: false,
-      errors: [{ field: "code", message: "Must contain between 1 and 128 characters." }],
+      errors: [{ field: "code", message: "Must contain exactly 6 letters A-Z or digits 0-9." }],
     };
   }
 

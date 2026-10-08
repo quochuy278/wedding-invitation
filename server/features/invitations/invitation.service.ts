@@ -10,6 +10,7 @@ import type {
   InvitationListParams,
 } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
+import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
 import { InvitationCreationError } from "./invitation.errors";
 import { invitationRepository, type PublicInvitationRecord } from "./invitation.repository";
 
@@ -67,13 +68,17 @@ export const invitationService = {
   },
 
   async validateCode(code: string): Promise<InvitationCodeValidationDto> {
-    const invitation = await invitationRepository.findActiveIdByCode(code);
+    const normalizedCode = normalizeInvitationCode(code);
+    if (!isInvitationCode(normalizedCode)) return { isValid: false };
+    const invitation = await invitationRepository.findActiveIdByCode(normalizedCode);
 
     return { isValid: invitation !== null };
   },
 
   async getByCode(code: string): Promise<InvitationDto | null> {
-    const invitation = await invitationRepository.findActiveByCode(code);
+    const normalizedCode = normalizeInvitationCode(code);
+    if (!isInvitationCode(normalizedCode)) return null;
+    const invitation = await invitationRepository.findActiveByCode(normalizedCode);
 
     return invitation ? toInvitationDto(invitation) : null;
   },

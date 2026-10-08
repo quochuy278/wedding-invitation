@@ -8,6 +8,7 @@ import { prisma } from "@/server/db/prisma";
 import { hashPassword } from "@/server/features/auth/password";
 import { issueTokens } from "@/server/features/auth/token";
 import { invitationService } from "@/server/features/invitations/invitation.service";
+import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import { UserLevel } from "@/shared/contracts/auth";
 import type { InvitationListDto } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
@@ -64,7 +65,7 @@ before(async () => {
         data: {
           user_id: user.id,
           address_id: address.id,
-          code: generateId(),
+          code: invitationCodeGenerator.generate(),
           status:
             index < 2 || index >= 6
               ? "accepted"

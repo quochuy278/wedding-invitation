@@ -30,12 +30,12 @@
     },
     "form": {
       "label": "Mã thiệp mời của bạn",
-      "placeholder": "Nhập mã thiệp mời",
-      "hint": "Mã được gửi kèm trong tin nhắn mời của chúng mình.",
+      "hint": "Mã gồm 6 ký tự A–Z và 0–9, được gửi kèm trong tin nhắn mời.",
       "submit": "Kiểm tra mã",
       "checking": "Đang kiểm tra…",
       "errors": {
         "required": "Bạn nhập mã thiệp mời trước nhé.",
+        "format": "Mã thiệp mời cần đủ 6 ký tự, chỉ gồm chữ A–Z và số 0–9.",
         "invalid": "Chưa tìm thấy thiệp mời với mã này. Bạn kiểm tra lại mã nhé."
       }
     }

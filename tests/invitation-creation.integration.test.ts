@@ -7,6 +7,7 @@ import { addressService } from "@/server/features/addresses/address.service";
 import { issueTokens } from "@/server/features/auth/token";
 import { InvitationCreationError } from "@/server/features/invitations/invitation.errors";
 import { invitationService } from "@/server/features/invitations/invitation.service";
+import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import type { AddressDto, CreateAddressInput } from "@/shared/contracts/address";
 import { UserLevel } from "@/shared/contracts/auth";
 import type { CreatedInvitationDto, CreateInvitationInput } from "@/shared/contracts/invitation";
@@ -121,7 +122,7 @@ test("saved venues round trip structured details and legacy addresses remain rea
 test("creating an invitation persists a unique code and exposes the selected venue and message", async () => {
   const input = invitationInput("roundtrip");
   const created = await invitationService.create(input);
-  assert.match(created.code, /^[a-z0-9]+$/);
+  assert.match(created.code, /^[A-Z0-9]{6}$/);
   assert.notEqual(created.id, created.code);
   assert.equal(created.status, "pending");
   assert.equal(created.email, input.email);
@@ -134,6 +135,39 @@ test("creating an invitation persists a unique code and exposes the selected ven
   assert.equal(publicInvitation.personalMessage, input.personalMessage);
   assert.deepEqual(publicInvitation.address, venue);
   assert.equal((await invitationService.validateCode(created.code)).isValid, true);
+  assert.deepEqual(await invitationService.getByCode(created.code.toLowerCase()), publicInvitation);
+  assert.equal(await invitationService.getByCode(created.id), null);
+  assert.equal((await invitationService.validateCode("ABC-12")).isValid, false);
+});
+
+test("a code collision retries atomically without creating an extra guest", async (context) => {
+  const existing = await invitationService.create(invitationInput("collision-existing"));
+  const nextCode = invitationCodeGenerator.generate();
+  const generate = context.mock.method(invitationCodeGenerator, "generate", () => nextCode);
+  generate.mock.mockImplementationOnce(() => existing.code);
+  try {
+    const input = invitationInput("collision-retry");
+    const created = await invitationService.create(input);
+    assert.equal(created.code, nextCode);
+    assert.equal(generate.mock.callCount(), 2);
+    assert.equal(await prisma.user.count({ where: { email: input.email } }), 1);
+    assert.equal(await prisma.invitation.count({ where: { user: { email: input.email } } }), 1);
+  } finally {
+    generate.mock.restore();
+  }
+});
+
+test("repeated code collisions stop retrying and roll back the guest", async (context) => {
+  const existing = await invitationService.create(invitationInput("collision-exhausted-existing"));
+  const generate = context.mock.method(invitationCodeGenerator, "generate", () => existing.code);
+  try {
+    const input = invitationInput("collision-exhausted");
+    await assert.rejects(invitationService.create(input), /unique invitation code/);
+    assert.equal(generate.mock.callCount(), 5);
+    assert.equal(await prisma.user.count({ where: { email: input.email } }), 0);
+  } finally {
+    generate.mock.restore();
+  }
 });
 
 test("invalid venue or past deadline leaves the contact available for a valid creation", async () => {
@@ -243,6 +277,7 @@ test("HTTP creates a venue then invitation and renders its real address and gues
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.ok(response.headers.get("vary")?.includes("Cookie"));
   const { data: created }: { data: CreatedInvitationDto } = await response.json();
+  assert.match(created.code, /^[A-Z0-9]{6}$/);
   assert.equal(created.guestName, input.guestName);
   assert.deepEqual(created.address, address);
   const duplicate = await fetch(`${baseUrl}/api/invitations`, {
@@ -262,4 +297,30 @@ test("HTTP creates a venue then invitation and renders its real address and gues
   ])
     assert.ok(html.includes(text), text);
   assert.ok(!html.includes(input.email), "Public invitation does not expose the guest email.");
+  const publicUrl = `${baseUrl}/api/invitations`;
+  const lookup = await fetch(`${publicUrl}/${created.code}`);
+  assert.equal(lookup.status, 200);
+  const { data: publicInvitation } = await lookup.json();
+  assert.equal(publicInvitation.code, created.code);
+  assert.equal(publicInvitation.guest.fullName, input.guestName);
+  assert.equal((await fetch(`${publicUrl}/${created.id}`)).status, 404);
+  for (const code of [created.code, created.code.toLowerCase()]) {
+    const validation = await fetch(`${publicUrl}/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    assert.equal(validation.status, 200);
+    assert.deepEqual(await validation.json(), { data: { isValid: true } });
+  }
+  for (const code of ["ABC12", "ABC1234", "ABC-12", "ß1234"]) {
+    const validation = await fetch(`${publicUrl}/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    assert.equal(validation.status, 400, code);
+    const body = await validation.json();
+    assert.equal(body.error.details[0].field, "code");
+  }
 });

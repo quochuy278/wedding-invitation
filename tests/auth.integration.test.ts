@@ -15,6 +15,7 @@ import {
 import { hashPassword } from "@/server/features/auth/password";
 import { type TokenClaims, TokenPurpose, verifyToken } from "@/server/features/auth/token";
 import { invitationService } from "@/server/features/invitations/invitation.service";
+import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import { type AuthSessionDto, UserLevel } from "@/shared/contracts/auth";
 import type { InvitationDto } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
@@ -67,7 +68,7 @@ before(async (): Promise<void> => {
   });
   addressIds.push(address.id);
   const invitationExpiresAt: Date = now().add(1, "day").toDate();
-  const invitationCode: string = generateId();
+  const invitationCode: string = invitationCodeGenerator.generate();
   const invitation: Invitation = await prisma.invitation.create({
     data: {
       code: invitationCode,
@@ -198,7 +199,7 @@ test("public invitations hide auth fields and exclude expired/deleted records", 
     fixtures.invitation.code,
   );
   assert.ok(invitation);
-  assert.match(fixtures.invitation.code, /^[a-z0-9]+$/);
+  assert.match(fixtures.invitation.code, /^[A-Z0-9]{6}$/);
   assert.deepEqual(Object.keys(invitation.guest), ["fullName"]);
   const expiredAt: Date = now().subtract(1, "second").toDate();
   await prisma.invitation.update({
