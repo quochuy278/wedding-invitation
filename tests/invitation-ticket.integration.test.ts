@@ -136,7 +136,6 @@ test("HTTP ticket displays the real guest, venue, QR and return links without ex
   const html = await response.text();
   for (const text of [
     saved.guestName,
-    saved.code,
     "Ticket test venue",
     "12 Đường Mẫu",
     "Sảnh Hoa Sen",

@@ -38,7 +38,7 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
   const expiry = new Intl.DateTimeFormat("vi-VN", expiryOptions).format(expiryDate);
   const expiryLabel = t("validUntil", { date: expiry });
   const invitationHref = `/invitation/${encodeURIComponent(invitation.code)}`;
-  const qrAlt = t("qrAlt", { code: invitation.code });
+  const qrAlt = t("qrAlt");
   const ticketClassName = cn(
     styles.ticketEntry,
     "overflow-hidden rounded-2xl border border-wedding-warm-beige/50 bg-[#fffdf8] shadow-[0_18px_60px_-30px_#7a102635]",
@@ -159,17 +159,9 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
                 </p>
               )}
 
-              <div className="mt-7 flex flex-wrap items-end justify-between gap-4 border-t border-wedding-warm-beige/35 pt-5">
-                <div>
-                  <p className="font-label text-[10px] text-muted-foreground">{t("codeLabel")}</p>
-                  <p className="mt-1 font-mono text-2xl tracking-[0.2em] text-wedding-wine">
-                    {invitation.code}
-                  </p>
-                </div>
-                <p className="max-w-52 text-[11px] leading-5 text-muted-foreground">
-                  {expiryLabel}
-                </p>
-              </div>
+              <p className="mt-7 border-t border-wedding-warm-beige/35 pt-5 text-[11px] leading-5 text-muted-foreground">
+                {expiryLabel}
+              </p>
             </div>
 
             <div className="relative flex flex-col items-center justify-center border-t border-dashed border-wedding-warm-beige/60 bg-wedding-cream/45 px-5 py-8 md:border-t-0 md:border-l">
