@@ -9,6 +9,7 @@ import { brevoService } from "@/server/features/invitations/brevo.service";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationTicketService } from "@/server/features/invitations/invitation-ticket.service";
 import { issueInvitationTicketToken } from "@/server/features/invitations/invitation-ticket.token";
+import { guestApiHeaders } from "@/shared/contracts/guest-api";
 import type { CreatedInvitationDto } from "@/shared/contracts/invitation";
 import { generateId } from "@/shared/utils/id";
 
@@ -170,7 +171,7 @@ test("HTTP QR download returns a readable signed PNG and excludes unavailable in
 }, async () => {
   const baseUrl = process.env.AUTH_TEST_BASE_URL ?? "http://localhost:3000";
   const qrUrl = `${baseUrl}/api/invitations/${saved.code}/ticket/qr`;
-  const response = await fetch(qrUrl);
+  const response = await fetch(qrUrl, { headers: guestApiHeaders });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "image/png");
   assert.equal(response.headers.get("cache-control"), "no-store");
@@ -185,11 +186,22 @@ test("HTTP QR download returns a readable signed PNG and excludes unavailable in
   const verified = await invitationTicketService.verify(decoded.data);
   assert.equal(verified?.id, saved.id);
   assert.equal(verified?.guest.fullName, saved.guestName);
-  assert.equal((await fetch(`${baseUrl}/api/invitations/${saved.id}/ticket/qr`)).status, 404);
+  assert.equal(
+    (await fetch(`${baseUrl}/api/invitations/${saved.id}/ticket/qr`, { headers: guestApiHeaders }))
+      .status,
+    404,
+  );
   const expired = await createInvitation("expired-download");
   await prisma.invitation.update({
     where: { id: expired.id },
     data: { expires_at: new Date(Date.now() - 1000) },
   });
-  assert.equal((await fetch(`${baseUrl}/api/invitations/${expired.code}/ticket/qr`)).status, 404);
+  assert.equal(
+    (
+      await fetch(`${baseUrl}/api/invitations/${expired.code}/ticket/qr`, {
+        headers: guestApiHeaders,
+      })
+    ).status,
+    404,
+  );
 });

@@ -58,7 +58,23 @@ no-store` and `Referrer-Policy: no-referrer`. Counters are local to each Proxy
 process and reset on restart. Multiple instances require a hosting/edge limit.
 Configure `TRUSTED_CLIENT_IP_HEADER` only when a trusted proxy overwrites it and
 direct access cannot bypass that proxy. Without it, visitors share one local
-budget. Guest access still requires only a valid invitation code, without login.
+budget. Guests can open invitation and ticket pages by code without login.
+
+The invitation HTTP APIs additionally require the temporary shared
+`X-Api-Key` header: `GET /api/invitations/:code`,
+`POST /api/invitations/validate` and `GET /api/invitations/:code/ticket/qr`.
+The hardcoded value and header are in `shared/contracts/guest-api.ts`; browser
+invitation services attach the header automatically. Missing or incorrect keys
+return `403 FORBIDDEN` before parsing bodies, querying the database or generating
+QR images. Requests still count toward the lookup budget.
+
+This key is public in the browser bundle and can be copied. It blocks API calls
+that omit the header, but does not authenticate a guest or prevent code guessing
+by someone who knows the key. Invitation availability and code checks still
+apply. Direct invitation/ticket pages remain accessible by code; no guest session
+or JWT is issued, and the key grants no admin access or RSVP authorization.
+To rotate the temporary key, edit the shared constant and rebuild/deploy both
+client and server together.
 
 The HTTP regression test uses `INVITATION_RATE_LIMIT_TEST_BASE_URL` and
 `INVITATION_RATE_LIMIT_TEST_IP_HEADER` against an isolated local production test
@@ -74,8 +90,12 @@ Try the API after running `pnpm dev`:
 
 ```bash
 curl http://localhost:3000/api/health
-curl http://localhost:3000/api/invitations/INVITATION_CODE
+# Copy the temporary value from shared/contracts/guest-api.ts first.
+GUEST_API_KEY='<guestApiKey value>'
+curl http://localhost:3000/api/invitations/INVITATION_CODE \
+  -H "X-Api-Key: $GUEST_API_KEY"
 curl -X POST http://localhost:3000/api/invitations/validate \
+  -H "X-Api-Key: $GUEST_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"code":"INVITATION_CODE"}'
 curl http://localhost:3000/api/rsvps

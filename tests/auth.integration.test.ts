@@ -17,6 +17,7 @@ import { type TokenClaims, TokenPurpose, verifyToken } from "@/server/features/a
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import { type AuthSessionDto, UserLevel } from "@/shared/contracts/auth";
+import { guestApiHeaders } from "@/shared/contracts/guest-api";
 import type { InvitationDto } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { generateId } from "@/shared/utils/id";
@@ -237,6 +238,9 @@ test("HTTP login, cookies, refresh, logout and public access", {
 
   async function request(path: string, method: string = "GET", body?: unknown): Promise<Response> {
     const headers: Headers = new Headers({ Origin: origin, "Content-Type": "application/json" });
+    if (path.startsWith("/api/invitations/")) {
+      for (const [name, value] of Object.entries(guestApiHeaders)) headers.set(name, value);
+    }
     const cookie: string = Array.from(jar.entries())
       .map(([name, value]: [string, string]): string => `${name}=${value}`)
       .join("; ");

@@ -13,6 +13,7 @@ import { invitationService } from "@/server/features/invitations/invitation.serv
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import type { AddressDto, CreateAddressInput } from "@/shared/contracts/address";
 import { UserLevel } from "@/shared/contracts/auth";
+import { guestApiHeaders } from "@/shared/contracts/guest-api";
 import type { CreatedInvitationDto, CreateInvitationInput } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { generateId } from "@/shared/utils/id";
@@ -394,7 +395,7 @@ test("HTTP creates a venue then invitation and renders its real address and gues
     assert.ok(html.includes(text), text);
   assert.ok(!html.includes(input.email), "Public invitation does not expose the guest email.");
   const publicUrl = `${baseUrl}/api/invitations`;
-  const lookup = await fetch(`${publicUrl}/${created.code}`);
+  const lookup = await fetch(`${publicUrl}/${created.code}`, { headers: guestApiHeaders });
   assert.equal(lookup.status, 200);
   const { data: publicInvitation } = await lookup.json();
   assert.equal(publicInvitation.code, created.code);

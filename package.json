@@ -23,7 +23,7 @@
     "db:validate": "prisma validate",
     "auth:setup": "node --import tsx scripts/auth-setup.ts",
     "admin:create": "node --conditions=react-server --import tsx scripts/create-admin.ts",
-    "test": "node --conditions=react-server --import tsx --test tests/auth.test.ts tests/auth-client.test.ts tests/api-error-resolver.test.ts tests/invitations.test.ts tests/invitation-creation.test.ts tests/address-geocoding.test.ts tests/invitation-email.test.ts tests/invitation-ticket.test.ts tests/invitation-scanner.test.ts tests/invitation-rate-limit.test.ts",
+    "test": "node --conditions=react-server --import tsx --test tests/auth.test.ts tests/auth-client.test.ts tests/api-error-resolver.test.ts tests/invitations.test.ts tests/invitation-creation.test.ts tests/address-geocoding.test.ts tests/invitation-email.test.ts tests/invitation-ticket.test.ts tests/invitation-scanner.test.ts tests/invitation-rate-limit.test.ts tests/guest-api-key.test.ts",
     "test:integration": "node --conditions=react-server --import tsx --test --test-concurrency=1 tests/auth.integration.test.ts tests/invitations.integration.test.ts tests/invitation-creation.integration.test.ts tests/invitation-ticket.integration.test.ts tests/invitation-scanner.integration.test.ts tests/invitation-rate-limit.http.test.ts"
   },
   "dependencies": {

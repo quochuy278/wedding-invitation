@@ -1,8 +1,11 @@
+import { requireGuestApiKey } from "@/server/features/invitations/invitation.http";
 import { validateInvitationCodeInputSchema } from "@/server/features/invitations/invitation.schema";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { badRequest, ok } from "@/server/shared/http/api-response";
 
 export async function POST(request: Request): Promise<Response> {
+  const denied = requireGuestApiKey(request);
+  if (denied) return denied;
   let body: unknown;
 
   try {

@@ -1,4 +1,5 @@
 import { ApiErrorCode, type ApiErrorResponse } from "@/lib/api/types";
+import { requireGuestApiKey } from "@/server/features/invitations/invitation.http";
 import { invitationTicketService } from "@/server/features/invitations/invitation-ticket.service";
 import { notFound } from "@/server/shared/http/api-response";
 
@@ -9,9 +10,11 @@ const responseHeaders = {
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: RouteContext<"/api/invitations/[code]/ticket/qr">,
 ): Promise<Response> {
+  const denied = requireGuestApiKey(request);
+  if (denied) return denied;
   try {
     const { code } = await context.params;
     const ticket = await invitationTicketService.getByCode(code);

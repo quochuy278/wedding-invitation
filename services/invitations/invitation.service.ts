@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
+import { guestApiHeaders } from "@/shared/contracts/guest-api";
 import type {
   CreatedInvitationDto,
   CreateInvitationInput,
@@ -27,6 +28,7 @@ export const invitationService = {
     const response = await apiClient.post<ApiResponse<InvitationCodeValidationDto>>(
       "/invitations/validate",
       input,
+      { headers: guestApiHeaders },
     );
 
     return response.data.data;
@@ -35,6 +37,7 @@ export const invitationService = {
   async getByCode(code: string): Promise<InvitationDto> {
     const response = await apiClient.get<ApiResponse<InvitationDto>>(
       `/invitations/${encodeURIComponent(code)}`,
+      { headers: guestApiHeaders },
     );
 
     return response.data.data;

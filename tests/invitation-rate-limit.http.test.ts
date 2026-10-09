@@ -6,6 +6,7 @@ import { after, test } from "node:test";
 import { ApiErrorCode } from "@/lib/api/types";
 import { prisma } from "@/server/db/prisma";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
+import { guestApiKey, guestApiKeyHeader } from "@/shared/contracts/guest-api";
 
 const baseUrl = process.env.INVITATION_RATE_LIMIT_TEST_BASE_URL;
 const identityHeader = process.env.INVITATION_RATE_LIMIT_TEST_IP_HEADER;
@@ -14,7 +15,7 @@ after(async () => {
   await prisma.$disconnect();
 });
 
-test("production HTTP pages, RSC, validation and QR share one lookup budget", {
+test("production guest APIs require the key and share the pages/RSC lookup budget", {
   skip: !baseUrl || !identityHeader,
 }, async () => {
   assert.ok(baseUrl);
@@ -48,8 +49,16 @@ test("production HTTP pages, RSC, validation and QR share one lookup budget", {
     path: string,
     identity: string,
     extraHeaders?: HeadersInit,
+    includeGuestKey: boolean = true,
   ): Promise<Response> {
     const headers = new Headers(extraHeaders);
+    if (
+      includeGuestKey &&
+      path.startsWith("/api/invitations/") &&
+      !headers.has(guestApiKeyHeader)
+    ) {
+      headers.set(guestApiKeyHeader, guestApiKey);
+    }
     headers.set(identityHeader ?? "", identity);
     const validate = path.startsWith("/api/invitations/validate");
     if (validate) headers.set("Content-Type", "application/json");
@@ -62,6 +71,39 @@ test("production HTTP pages, RSC, validation and QR share one lookup budget", {
 
   try {
     const code = fixture.invitation.code;
+    const keyClient = randomUUID();
+    for (const path of [
+      `/api/invitations/${code}`,
+      "/api/invitations/validate",
+      `/api/invitations/${code}/ticket/qr`,
+    ]) {
+      for (const key of ["", "wrong-key"]) {
+        const denied = await send(
+          path,
+          keyClient,
+          key ? { [guestApiKeyHeader]: key } : undefined,
+          false,
+        );
+        assert.equal(denied.status, 403, path);
+        assert.equal(denied.headers.get("cache-control"), "no-store");
+        assert.equal(denied.headers.get("set-cookie"), null);
+        const body = await denied.text();
+        assert.equal(JSON.parse(body).error.code, ApiErrorCode.Forbidden);
+        assert.ok(!body.includes(fixture.user.full_name));
+      }
+    }
+    const validation = await fetch(`${baseUrl}/api/invitations/validate`, {
+      method: "POST",
+      headers: {
+        [identityHeader]: keyClient,
+        [guestApiKeyHeader]: guestApiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ code }),
+    });
+    assert.equal(validation.status, 200);
+    assert.deepEqual(await validation.json(), { data: { isValid: true } });
+    assert.equal(validation.headers.get("set-cookie"), null);
     const normalClient = randomUUID();
     const validPaths = [
       `/api/invitations/${code}`,
@@ -125,6 +167,11 @@ test("production HTTP pages, RSC, validation and QR share one lookup budget", {
     const adminList = await send("/api/invitations", burstClient);
     assert.equal(adminList.status, 401);
     await adminList.arrayBuffer();
+    const guestKeyAdmin = await send("/api/invitations", randomUUID(), {
+      [guestApiKeyHeader]: guestApiKey,
+    });
+    assert.equal(guestKeyAdmin.status, 401);
+    await guestKeyAdmin.arrayBuffer();
   } finally {
     await prisma.invitation.delete({ where: { id: fixture.invitation.id } });
     await prisma.user.delete({ where: { id: fixture.user.id } });
