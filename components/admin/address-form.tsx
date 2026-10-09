@@ -40,11 +40,6 @@ const accessFields: AddressTextField[] = [
   { name: "entrance", maximum: 200 },
 ];
 
-function formCoordinate(data: FormData, name: string): number | null {
-  const text = formText(data, name);
-  return text ? Number(text) : null;
-}
-
 export function AddressForm(): ReactElement {
   const t = useTranslations("Admin.addresses");
   const apiErrors = useTranslations("ApiErrors");
@@ -53,11 +48,7 @@ export function AddressForm(): ReactElement {
   const busy = mutation.isPending;
   const created = mutation.data;
   const disabled = busy || Boolean(created);
-  const savingLabel =
-    mutation.variables?.latitude === null && mutation.variables?.longitude === null
-      ? t("geocodingAndSaving")
-      : t("saving");
-  const submitLabel = busy ? savingLabel : t("save");
+  const submitLabel = busy ? t("geocodingAndSaving") : t("save");
   const errorMessage = mutation.error ? apiErrors(mutation.error.code) : null;
   const timezoneHint = timezone ? t("timezoneHint", { timezone }) : undefined;
   const invitationHref = created
@@ -117,8 +108,8 @@ export function AddressForm(): ReactElement {
       instructions: formText(data, "instructions") || null,
       floor: formText(data, "floor") || null,
       entrance: formText(data, "entrance") || null,
-      latitude: formCoordinate(data, "latitude"),
-      longitude: formCoordinate(data, "longitude"),
+      latitude: null,
+      longitude: null,
       eventAt: formZonedTimestamp(data, "eventAt", timezone),
       eventTimeZone: timezone,
     };
@@ -139,8 +130,6 @@ export function AddressForm(): ReactElement {
   const addressTextError = fieldError("addressText");
   const typeError = fieldError("locationType");
   const instructionsError = fieldError("instructions");
-  const latitudeError = fieldError("latitude");
-  const longitudeError = fieldError("longitude");
   const typeInvalid = Boolean(typeError);
 
   return (
@@ -235,27 +224,6 @@ export function AddressForm(): ReactElement {
                   <Textarea id="instructions" name="instructions" rows={3} maxLength={2000} />
                   {instructionsError && <FieldError>{instructionsError}</FieldError>}
                 </Field>
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <AdminFormField
-                    name="latitude"
-                    label={t("latitude")}
-                    type="number"
-                    step="any"
-                    min={-90}
-                    max={90}
-                    error={latitudeError}
-                  />
-                  <AdminFormField
-                    name="longitude"
-                    label={t("longitude")}
-                    type="number"
-                    step="any"
-                    min={-180}
-                    max={180}
-                    error={longitudeError}
-                  />
-                </div>
-                <FieldDescription>{t("coordinatesHint")}</FieldDescription>
               </FieldGroup>
             </fieldset>
             {errorMessage && (

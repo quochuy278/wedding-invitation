@@ -1,7 +1,8 @@
-import { ArrowUpRight, Heart, LockKeyhole } from "lucide-react";
+import { Heart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { HomeAuthLink } from "@/components/home/home-auth-link";
 import { HomeInvitationArtwork } from "@/components/home/home-invitation-artwork";
 import { InvitationCodeForm } from "@/components/home/invitation-code-form";
 import { PaperTexture } from "@/components/invitation/invitation-decorations";
@@ -36,14 +37,7 @@ export default function HomePage() {
           </span>
         </Link>
 
-        <Link
-          href="/login"
-          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-wedding-wine/20 px-4 font-label text-xs text-wedding-wine transition-colors hover:border-wedding-wine/40 hover:bg-wedding-wine/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wedding-dusty-rose motion-reduce:transition-none sm:px-5"
-        >
-          <LockKeyhole className="size-3.5" aria-hidden="true" />
-          {t("adminLogin")}
-          <ArrowUpRight className="size-3.5" aria-hidden="true" />
-        </Link>
+        <HomeAuthLink />
       </header>
 
       <main
