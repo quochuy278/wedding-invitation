@@ -46,6 +46,14 @@ the page changes the React Query key and fetches that API page without navigatio
 or URL changes. Reloading starts at page 1. The table shows the invitation's last
 update date, rather than a response date.
 
+`/dashboard` uses the same global summary and React Query cache as the first page
+of the invitation list. Its cards show the total invitations, accepted invitations
+and sum of guests from accepted invitations; the pending hint also uses the live
+summary. Empty data displays zero, loading displays skeletons, and failed reads
+display an error with retry instead of fabricated counts. Creating an invitation
+invalidates the shared cache. The dashboard page and the list API each require an
+active admin session.
+
 Public invitation reads share a 60-request / 60-second burst budget at `proxy.ts`,
 before route handling, database lookups or QR rendering. This includes
 `/invitation/:code`, `/ticket/:code`, `/api/invitations/:code`, validation and QR
