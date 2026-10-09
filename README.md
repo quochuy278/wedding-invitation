@@ -46,6 +46,26 @@ the page changes the React Query key and fetches that API page without navigatio
 or URL changes. Reloading starts at page 1. The table shows the invitation's last
 update date, rather than a response date.
 
+Public invitation reads share a 60-request / 60-second burst budget at `proxy.ts`,
+before route handling, database lookups or QR rendering. This includes
+`/invitation/:code`, `/ticket/:code`, `/api/invitations/:code`, validation and QR
+downloads, including RSC and prefetch requests. Switching paths or codes does not
+renew the budget. Each request counts once; protected admin list/create routes
+remain outside this public lookup guard.
+
+Exhausted budgets return `429 RATE_LIMITED` with `Retry-After`, `Cache-Control:
+no-store` and `Referrer-Policy: no-referrer`. Counters are local to each Proxy
+process and reset on restart. Multiple instances require a hosting/edge limit.
+Configure `TRUSTED_CLIENT_IP_HEADER` only when a trusted proxy overwrites it and
+direct access cannot bypass that proxy. Without it, visitors share one local
+budget. Guest access still requires only a valid invitation code, without login.
+
+The HTTP regression test uses `INVITATION_RATE_LIMIT_TEST_BASE_URL` and
+`INVITATION_RATE_LIMIT_TEST_IP_HEADER` against an isolated local production test
+server. Its identity header must match that server's `TRUSTED_CLIENT_IP_HEADER`.
+The test creates and removes its own database fixture without calling email or
+geocoding providers.
+
 The RSVP repository currently uses in-memory demo data, which resets whenever the
 server process restarts and is not suitable for deployment. Replace only
 `rsvp.repository.ts` when adding Prisma, Drizzle, or another database layer.

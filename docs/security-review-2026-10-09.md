@@ -54,6 +54,42 @@ when provisioning a new database; repository migrations do not reproduce them.
 The user approved this fix on 2026-10-09. Further fixes use separate commits and
 require user review before each push.
 
+### Fix 2 — completed and approved
+
+Fix 1's security record was committed and pushed as `d7ec193` before starting
+this change. A root `proxy.ts` now applies the existing public invitation limiter
+before every invitation page, ticket page and `/api/invitations/:code` request,
+including validation and nested QR downloads. RSC and prefetch requests are
+included, with no client-controlled header exclusions. API-handler counters were
+removed so public requests count once in the Proxy runtime; no state is shared
+between Proxy and rendering runtimes. Admin list/create endpoints remain outside
+this public guard.
+
+The budget remains 60 requests per 60 seconds for the resolved client identity.
+Changing codes or entry points does not reset it. Exhaustion returns `429` with
+`Retry-After`, `Cache-Control: no-store` and `Referrer-Policy: no-referrer` before
+the page/service can query the database or generate a QR.
+
+Verification:
+
+- `pnpm test`: 50 passing tests, including matcher coverage, a shared cross-path
+  budget, forged forwarding headers and recovery after the window expires.
+- `pnpm build`: successful production build and TypeScript checks.
+- Biome checks for changed code and package scripts: passed.
+- Dedicated HTTP regression against an isolated `next start` server: passed.
+  API, invitation, ticket and QR reads of its valid fixture returned `200`.
+  Sixty mixed requests exhausted one budget, and all five entry points returned
+  `429` afterward, including RSC/prefetch and forged subrequest headers.
+  Another verified client identity could still read the fixture, the homepage
+  returned `200`, and the protected admin list still returned `401` without auth.
+  Its database fixture was removed; no email/geocoding providers were called.
+
+This resolves the page/API coverage gap. Counters are still process-local and
+unverified client identity falls back to a shared bucket; the separate deployment
+limitation in finding 3 remains. The user approved packing and pushing this fix
+on 2026-10-09. Fix 3 (public demo RSVP writes) remains pending while the requested
+public guest-token review is completed.
+
 ## Existing protections
 
 - Codes are six ASCII letters/digits, generated using `node:crypto.randomInt`.
@@ -112,6 +148,9 @@ its required access. See [Supabase API hardening](https://supabase.com/docs/guid
 and [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
 ### 1. High: public pages bypass the invitation lookup limiter
+
+Status: resolved by Fix 2 above. The following describes
+the original audit result.
 
 Sources: `app/(public)/invitation/[id]/page.tsx:25`,
 `app/(public)/ticket/[code]/page.tsx:21`,

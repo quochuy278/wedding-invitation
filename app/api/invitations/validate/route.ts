@@ -3,8 +3,6 @@ import { invitationService } from "@/server/features/invitations/invitation.serv
 import { badRequest, ok } from "@/server/shared/http/api-response";
 
 export async function POST(request: Request): Promise<Response> {
-  const limited: Response | null = invitationRateLimit(request);
-  if (limited) return limited;
   let body: unknown;
 
   try {
@@ -25,5 +23,3 @@ export async function POST(request: Request): Promise<Response> {
 
   return ok(validation);
 }
-
-import { invitationRateLimit } from "@/server/features/invitations/invitation.http";
