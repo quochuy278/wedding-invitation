@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formZonedTimestamp } from "@/components/admin/form-values";
+import {
+  formTimestamp,
+  formZonedTimestamp,
+  localDateTimeValue,
+  parseDisplayDate,
+} from "@/components/admin/form-values";
 import { parseCreateAddressInput } from "@/server/features/addresses/address.schema";
 import { parseCreateInvitationInput } from "@/server/features/invitations/invitation.schema";
 import type { CreateAddressInput } from "@/shared/contracts/address";
@@ -23,6 +28,43 @@ const address: CreateAddressInput = {
   eventAt: "2027-06-12T18:00:00+07:00",
   eventTimeZone: "Asia/Ho_Chi_Minh",
 };
+
+test("Vietnamese date entry uses day/month order, validates real dates and preserves 24-hour time", () => {
+  assert.equal(localDateTimeValue("12/06/2027", "18", "30"), "2027-06-12T18:30");
+  assert.equal(localDateTimeValue("06/12/2027", "00", "00"), "2027-12-06T00:00");
+  assert.equal(localDateTimeValue("31/12/2027", "23", "59"), "2027-12-31T23:59");
+  assert.equal(localDateTimeValue("29/02/2028", "12", "00"), "2028-02-29T12:00");
+  for (const value of ["", "12/6/2027", "2027-06-12", "06/31/2027", "31/04/2027", "29/02/2027"])
+    assert.equal(parseDisplayDate(value), undefined, value);
+  for (const [hour, minute] of [
+    ["", "00"],
+    ["24", "00"],
+    ["1", "00"],
+    ["12 PM", "00"],
+    ["23", "60"],
+  ])
+    assert.equal(localDateTimeValue("12/06/2027", hour, minute), "");
+  const data = new FormData();
+  data.set("eventAt", localDateTimeValue("12/06/2027", "18", "30"));
+  assert.equal(formZonedTimestamp(data, "eventAt", "Asia/Ho_Chi_Minh"), "2027-06-12T11:30:00.000Z");
+});
+
+test("local deadlines reject date rollover and nonexistent daylight-saving times", () => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "Europe/Berlin";
+  try {
+    const data = new FormData();
+    data.set("expiresAt", "2027-06-12T23:59");
+    assert.equal(formTimestamp(data, "expiresAt"), "2027-06-12T21:59:00.000Z");
+    for (const value of ["2027-02-31T18:30", "2027-03-28T02:30", "not-a-date", ""]) {
+      data.set("expiresAt", value);
+      assert.equal(formTimestamp(data, "expiresAt"), value);
+    }
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
 
 test("venue validation preserves full text, postal zeroes and nonnumeric floor names", () => {
   assert.deepEqual(parseCreateAddressInput(address), { success: true, data: address });

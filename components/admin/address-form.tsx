@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ChangeEvent, type FormEvent, type ReactElement, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCreateAddress } from "@/hooks/queries/use-addresses";
 import { type CreateAddressInput, locationTypes } from "@/shared/contracts/address";
 import { AddressSummary } from "./address-summary";
+import { AdminDateTimeField } from "./date-time-field";
 import { AdminFormField } from "./form-field";
 import { formText, formZonedTimestamp, hasFieldError } from "./form-values";
 
@@ -44,21 +45,24 @@ export function AddressForm(): ReactElement {
   const t = useTranslations("Admin.addresses");
   const apiErrors = useTranslations("ApiErrors");
   const mutation = useCreateAddress();
+  const router = useRouter();
   const [timezone, setTimezone] = useState("");
+  const [dateTimeKey, setDateTimeKey] = useState(0);
   const busy = mutation.isPending;
   const created = mutation.data;
   const disabled = busy || Boolean(created);
   const submitLabel = busy ? t("geocodingAndSaving") : t("save");
   const errorMessage = mutation.error ? apiErrors(mutation.error.code) : null;
   const timezoneHint = timezone ? t("timezoneHint", { timezone }) : undefined;
-  const invitationHref = created
-    ? `/dashboard/invitations/new?addressId=${encodeURIComponent(created.id)}`
-    : "/dashboard/invitations/new";
 
   useEffect(() => {
     const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     setTimezone(browserTimezone);
   }, []);
+
+  useEffect(() => {
+    if (created) router.replace("/dashboard/addresses");
+  }, [created, router]);
 
   function fieldError(name: string): string | undefined {
     const invalid = hasFieldError(mutation.error, name);
@@ -118,6 +122,7 @@ export function AddressForm(): ReactElement {
 
   function handleReset(): void {
     mutation.reset();
+    setDateTimeKey((key) => key + 1);
   }
 
   function handleTimezoneChange(event: ChangeEvent<HTMLInputElement>): void {
@@ -145,103 +150,106 @@ export function AddressForm(): ReactElement {
           </CardHeader>
           <CardContent className="space-y-4">
             <AddressSummary address={created} />
-            <Button nativeButton={false} render={<Link href={invitationHref} />}>
-              {t("useForInvitation")}
-            </Button>
           </CardContent>
         </Card>
       )}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("detailsTitle")}</CardTitle>
-          <CardDescription>{t("requiredHint")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} onReset={handleReset}>
-            <fieldset disabled={disabled} className="min-w-0">
-              <FieldGroup>
-                <AdminFormField
-                  name="name"
-                  label={t("name")}
-                  error={nameError}
-                  required
-                  maxLength={200}
-                />
-                <AdminFormField
-                  name="eventAt"
-                  label={t("eventAt")}
-                  hint={timezoneHint}
-                  error={eventAtError}
-                  type="datetime-local"
-                  required
-                />
-                <AdminFormField
-                  name="eventTimeZone"
-                  label={t("eventTimeZone")}
-                  value={timezone}
-                  onChange={handleTimezoneChange}
-                  list="event-time-zones"
-                  error={timeZoneError}
-                  required
-                />
-                <datalist id="event-time-zones">
-                  <option value="Asia/Ho_Chi_Minh" />
-                  <option value="Europe/Berlin" />
-                  <option value="UTC" />
-                </datalist>
-                <Field>
-                  <FieldLabel htmlFor="addressText">{t("addressText")}</FieldLabel>
-                  <Textarea
-                    id="addressText"
-                    name="addressText"
-                    rows={3}
+      {!created && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("detailsTitle")}</CardTitle>
+            <CardDescription>{t("requiredHint")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} onReset={handleReset}>
+              <fieldset disabled={disabled} className="min-w-0">
+                <FieldGroup>
+                  <AdminFormField
+                    name="name"
+                    label={t("name")}
+                    error={nameError}
                     required
-                    maxLength={2000}
+                    maxLength={200}
                   />
-                  <FieldDescription>{t("addressTextHint")}</FieldDescription>
-                  {addressTextError && <FieldError>{addressTextError}</FieldError>}
-                </Field>
-                <div className="grid gap-5 sm:grid-cols-2">{streetFields.map(renderTextField)}</div>
-                <Field data-invalid={typeInvalid}>
-                  <FieldLabel htmlFor="locationType">{t("locationType")}</FieldLabel>
-                  <NativeSelect
-                    id="locationType"
-                    name="locationType"
-                    defaultValue=""
+                  <AdminDateTimeField
+                    key={dateTimeKey}
+                    name="eventAt"
+                    label={t("eventAt")}
+                    hint={timezoneHint}
+                    error={eventAtError}
+                    disabled={disabled}
+                  />
+                  <AdminFormField
+                    name="eventTimeZone"
+                    label={t("eventTimeZone")}
+                    value={timezone}
+                    onChange={handleTimezoneChange}
+                    list="event-time-zones"
+                    error={timeZoneError}
                     required
-                    aria-invalid={typeInvalid}
-                  >
-                    <NativeSelectOption value="" disabled>
-                      {t("chooseType")}
-                    </NativeSelectOption>
-                    {locationTypes.map(renderLocationType)}
-                  </NativeSelect>
-                  {typeError && <FieldError>{typeError}</FieldError>}
-                </Field>
-                <div className="grid gap-5 sm:grid-cols-2">{accessFields.map(renderTextField)}</div>
-                <Field>
-                  <FieldLabel htmlFor="instructions">{t("instructions")}</FieldLabel>
-                  <Textarea id="instructions" name="instructions" rows={3} maxLength={2000} />
-                  {instructionsError && <FieldError>{instructionsError}</FieldError>}
-                </Field>
-              </FieldGroup>
-            </fieldset>
-            {errorMessage && (
-              <p role="alert" className="mt-5 text-sm text-destructive">
-                {errorMessage}
-              </p>
-            )}
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <Button type="reset" variant="outline" disabled={busy}>
-                {t("reset")}
-              </Button>
-              <Button type="submit" disabled={disabled}>
-                {submitLabel}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                  />
+                  <datalist id="event-time-zones">
+                    <option value="Asia/Ho_Chi_Minh" />
+                    <option value="Europe/Berlin" />
+                    <option value="UTC" />
+                  </datalist>
+                  <Field>
+                    <FieldLabel htmlFor="addressText">{t("addressText")}</FieldLabel>
+                    <Textarea
+                      id="addressText"
+                      name="addressText"
+                      rows={3}
+                      required
+                      maxLength={2000}
+                    />
+                    <FieldDescription>{t("addressTextHint")}</FieldDescription>
+                    {addressTextError && <FieldError>{addressTextError}</FieldError>}
+                  </Field>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    {streetFields.map(renderTextField)}
+                  </div>
+                  <Field data-invalid={typeInvalid}>
+                    <FieldLabel htmlFor="locationType">{t("locationType")}</FieldLabel>
+                    <NativeSelect
+                      id="locationType"
+                      name="locationType"
+                      defaultValue=""
+                      required
+                      aria-invalid={typeInvalid}
+                    >
+                      <NativeSelectOption value="" disabled>
+                        {t("chooseType")}
+                      </NativeSelectOption>
+                      {locationTypes.map(renderLocationType)}
+                    </NativeSelect>
+                    {typeError && <FieldError>{typeError}</FieldError>}
+                  </Field>
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    {accessFields.map(renderTextField)}
+                  </div>
+                  <Field>
+                    <FieldLabel htmlFor="instructions">{t("instructions")}</FieldLabel>
+                    <Textarea id="instructions" name="instructions" rows={3} maxLength={2000} />
+                    {instructionsError && <FieldError>{instructionsError}</FieldError>}
+                  </Field>
+                </FieldGroup>
+              </fieldset>
+              {errorMessage && (
+                <p role="alert" className="mt-5 text-sm text-destructive">
+                  {errorMessage}
+                </p>
+              )}
+              <div className="mt-6 flex flex-wrap justify-end gap-3">
+                <Button type="reset" variant="outline" disabled={busy}>
+                  {t("reset")}
+                </Button>
+                <Button type="submit" disabled={disabled}>
+                  {submitLabel}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </main>
   );
 }

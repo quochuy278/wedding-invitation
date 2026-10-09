@@ -8,6 +8,7 @@ export function InvitationSchedule({ eventAt, timeZone }: { eventAt: string; tim
     timeZone,
     dateStyle: "full",
     timeStyle: "short",
+    hourCycle: "h23",
   };
   const displayTime = new Intl.DateTimeFormat("vi-VN", dateOptions).format(new Date(eventAt));
   return (
@@ -29,7 +30,6 @@ export function InvitationSchedule({ eventAt, timeZone }: { eventAt: string; tim
           <time dateTime={eventAt} className="text-xl text-wedding-wine">
             {displayTime}
           </time>
-          <p className="text-sm">{timeZone}</p>
           <p>{t("events.guestWelcome.description")}</p>
         </div>
       </div>

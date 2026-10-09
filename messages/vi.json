@@ -84,6 +84,13 @@
     "logoutFailed": "Chưa thể đăng xuất lúc này. Vui lòng thử lại."
   },
   "Admin": {
+    "dateTime": {
+      "hour": "Giờ",
+      "minute": "Phút",
+      "chooseDate": "Chọn ngày cho {label}",
+      "formatHint": "Ngày theo định dạng dd/mm/yyyy; giờ từ 00 đến 23.",
+      "invalidDate": "Nhập ngày hợp lệ theo định dạng dd/mm/yyyy, ví dụ 12/06/2027."
+    },
     "sidebar": {
       "brand": "Huy & Phụng",
       "subtitle": "Quản lý thiệp cưới",
@@ -143,7 +150,6 @@
       "loadingAddresses": "Đang tải địa điểm…",
       "noAddresses": "Bạn cần tạo địa điểm tổ chức trước khi tạo thiệp.",
       "retry": "Thử lại",
-      "emailNotSent": "Bản này chỉ lưu thiệp và email khách. Email chưa được gửi.",
       "creating": "Đang tạo thiệp…",
       "created": "Đã lưu thiệp mời",
       "copied": "Đã sao chép",

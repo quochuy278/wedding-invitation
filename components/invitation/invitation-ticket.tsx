@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { AddressDto } from "@/shared/contracts/address";
 import type { InvitationTicketDto } from "@/shared/contracts/invitation";
+import { addressDisplayLines } from "@/shared/utils/address";
 import { PaperTexture } from "./invitation-decorations";
 import styles from "./invitation-ticket.module.css";
 import { TicketLiveMarker } from "./ticket-live-marker";
@@ -218,23 +219,15 @@ export function InvitationTicket({ ticket }: { ticket: InvitationTicketDto }) {
 
 function TicketVenue({ venue }: { venue: AddressDto }) {
   const t = useTranslations("Invitation.venue");
-  const locality = [venue.postalCode, venue.city, venue.region, venue.country]
-    .filter(Boolean)
-    .join(", ");
+  const addressLines = addressDisplayLines(venue);
   const floor = venue.floor ? t("floor", { value: venue.floor }) : null;
   const entrance = venue.entrance ? t("entrance", { value: venue.entrance }) : null;
   const access = [floor, entrance].filter(Boolean).join(" · ");
-  const showAddressLine1 =
-    venue.addressLine1 !== null && !venue.addressText.includes(venue.addressLine1);
-  const showAddressLine2 =
-    venue.addressLine2 !== null && !venue.addressText.includes(venue.addressLine2);
-  const showLocality = Boolean(locality) && !venue.addressText.includes(locality);
   return (
     <address className="mt-2 space-y-1 text-sm leading-6 whitespace-pre-line not-italic [overflow-wrap:anywhere]">
-      <p>{venue.addressText}</p>
-      {showAddressLine1 && <p>{venue.addressLine1}</p>}
-      {showAddressLine2 && <p>{venue.addressLine2}</p>}
-      {showLocality && <p>{locality}</p>}
+      {addressLines.map((line) => (
+        <p key={line}>{line}</p>
+      ))}
       {access && <p className="text-wedding-wine">{access}</p>}
       {venue.instructions && <p className="text-muted-foreground">{venue.instructions}</p>}
     </address>
