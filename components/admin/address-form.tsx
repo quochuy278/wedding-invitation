@@ -53,7 +53,11 @@ export function AddressForm(): ReactElement {
   const busy = mutation.isPending;
   const created = mutation.data;
   const disabled = busy || Boolean(created);
-  const submitLabel = busy ? t("saving") : t("save");
+  const savingLabel =
+    mutation.variables?.latitude === null && mutation.variables?.longitude === null
+      ? t("geocodingAndSaving")
+      : t("saving");
+  const submitLabel = busy ? savingLabel : t("save");
   const errorMessage = mutation.error ? apiErrors(mutation.error.code) : null;
   const timezoneHint = timezone ? t("timezoneHint", { timezone }) : undefined;
   const invitationHref = created

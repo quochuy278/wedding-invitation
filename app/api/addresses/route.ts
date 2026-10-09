@@ -1,4 +1,5 @@
 import { ApiErrorCode } from "@/lib/api/types";
+import { AddressGeocodingError } from "@/server/features/addresses/address.errors";
 import { parseCreateAddressInput } from "@/server/features/addresses/address.schema";
 import { addressService } from "@/server/features/addresses/address.service";
 import { hasTrustedOrigin } from "@/server/features/auth/auth.config";
@@ -36,6 +37,20 @@ export async function POST(request: Request): Promise<Response> {
     const address = await addressService.create(parsed.data);
     return privateResponse(ok(address, 201));
   } catch (error: unknown) {
+    if (error instanceof AddressGeocodingError) {
+      if (error.reason === "notFound") {
+        return authError(
+          ApiErrorCode.GeocodingNotFound,
+          "No sufficiently specific location was found. Refine the full address or enter both coordinates.",
+          422,
+        );
+      }
+      return authError(
+        ApiErrorCode.GeocodingUnavailable,
+        "Coordinates are temporarily unavailable. Try again or enter both coordinates.",
+        503,
+      );
+    }
     console.error("Address creation failed:", error instanceof Error ? error.name : "UnknownError");
     return authError(ApiErrorCode.Unavailable, "Address could not be saved.", 503);
   }

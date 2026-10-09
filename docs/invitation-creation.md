@@ -8,7 +8,11 @@ Admins create venues at `/dashboard/addresses/new`, review them at `/dashboard/a
 
 New venues require a name, full address, first address line, location type, postal code, city, country, event date/time, and IANA time zone. Other fields are optional. Postal codes and floors are strings, preserving values such as `00123`, `B1`, and `3A`. Postal codes are not checked against a country-specific registry.
 
-Coordinates are optional, supplied together, finite, and bounded to latitude ±90 and longitude ±180. The database also enforces the pair and range constraints. No geocoding or geographic verification runs in this version.
+Coordinates can be entered manually as a pair, finite and bounded to latitude ±90 and longitude ±180. The database also enforces the pair and range constraints. When both coordinates are omitted or null, the server geocodes `addressText` with Geoapify before creating the venue and saves the resulting latitude and longitude in the same insert. Manually supplied coordinates, including zero, bypass geocoding. Original full address text and structured details remain unchanged.
+
+Set `GEOAPIFY_API_KEY` in `.env` locally and in the deployment environment. The key is server-only; the browser calls only `/api/addresses`. The integration uses [Geoapify's forward geocoding API](https://apidocs.geoapify.com/docs/geocoding/) with `text`, `format=json`, `limit=1`, and `bias=countrycode:none`, so the server's hosting region does not influence venue searches. Requests are uncached, time out after eight seconds, and never expose provider errors or URLs to the client.
+
+The best result must contain finite, bounded coordinates and refer to a building, amenity, or street. Street results can be approximate; geocoding does not verify a floor, entrance, or exact building position. Administrative-area fallbacks such as a city or country are rejected. No match or an insufficiently specific result returns `422 GEOCODING_NOT_FOUND`. Missing configuration, provider errors, invalid responses, and timeouts return `503 GEOCODING_UNAVAILABLE`. These failures leave no venue record, preserve the form, and let the admin refine the full address, retry, or enter both coordinates manually. Existing venues are not backfilled and no migration is needed for this integration.
 
 `event_at` stores the instant; `event_time_zone` stores the venue's chosen time zone. The browser initially suggests its zone, which the admin can change. The form converts local event time using that zone and rejects nonexistent local times during daylight-saving transitions. Public invitations format the event in the saved venue time zone. Legacy venues without one use `Asia/Ho_Chi_Minh`, matching the previous invitation template.
 
@@ -56,3 +60,5 @@ RSVP and wishes submission behavior is unchanged.
 ## Verification
 
 Run `pnpm test`, `AUTH_TEST_BASE_URL=http://localhost:3000 pnpm test:integration` against a running development server, `pnpm exec tsc --noEmit`, `pnpm check`, and `pnpm build`. Integration fixtures use unique identities and delete only their own records.
+
+The regular geocoding tests mock provider responses and cover success, latitude/longitude ordering, zero coordinates, administrative fallbacks, malformed data, HTTP failures, timeouts, and missing configuration. Database tests confirm geocoded pairs are persisted, manual coordinates bypass the provider, and failed lookups leave no record. Set `GEOAPIFY_TEST_LIVE=true` alongside `AUTH_TEST_BASE_URL` to opt into two real Geoapify HTTP flows using the server's configured key: saving a resolved venue and rejecting a city-only lookup before retrying with manual coordinates. These tests consume two provider requests and clean up their own venues.

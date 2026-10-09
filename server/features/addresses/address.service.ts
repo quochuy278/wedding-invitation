@@ -3,6 +3,7 @@ import "server-only";
 import type { Address } from "@/generated/prisma/client";
 import type { AddressDto, AddressListDto, CreateAddressInput } from "@/shared/contracts/address";
 import { addressRepository } from "./address.repository";
+import { geoapifyService } from "./geoapify.service";
 
 export function toAddressDto(address: Address): AddressDto {
   return {
@@ -33,6 +34,10 @@ export const addressService = {
     return { items };
   },
   async create(input: CreateAddressInput): Promise<AddressDto> {
+    const hasCoordinates = input.latitude !== null && input.longitude !== null;
+    const coordinates = hasCoordinates
+      ? { latitude: input.latitude, longitude: input.longitude }
+      : await geoapifyService.geocode(input.addressText);
     const data = {
       name: input.name,
       address_text: input.addressText,
@@ -46,8 +51,8 @@ export const addressService = {
       instructions: input.instructions,
       floor: input.floor,
       entrance: input.entrance,
-      latitude: input.latitude,
-      longitude: input.longitude,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
       event_at: new Date(input.eventAt),
       event_time_zone: input.eventTimeZone,
     };

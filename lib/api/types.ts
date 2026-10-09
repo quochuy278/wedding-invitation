@@ -10,6 +10,8 @@ export enum ApiErrorCode {
   Conflict = "CONFLICT",
   InvalidCredentials = "INVALID_CREDENTIALS",
   RateLimited = "RATE_LIMITED",
+  GeocodingNotFound = "GEOCODING_NOT_FOUND",
+  GeocodingUnavailable = "GEOCODING_UNAVAILABLE",
   Unavailable = "UNAVAILABLE",
   Unknown = "UNKNOWN",
 }

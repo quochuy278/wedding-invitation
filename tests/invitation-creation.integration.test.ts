@@ -3,7 +3,9 @@ import "dotenv/config";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { prisma } from "@/server/db/prisma";
+import { AddressGeocodingError } from "@/server/features/addresses/address.errors";
 import { addressService } from "@/server/features/addresses/address.service";
+import { geoapifyService } from "@/server/features/addresses/geoapify.service";
 import { issueTokens } from "@/server/features/auth/token";
 import { InvitationCreationError } from "@/server/features/invitations/invitation.errors";
 import { invitationService } from "@/server/features/invitations/invitation.service";
@@ -117,6 +119,65 @@ test("saved venues round trip structured details and legacy addresses remain rea
   assert.equal(legacy.addressText, "Original legacy text");
   assert.equal(legacy.city, null);
   assert.equal(legacy.latitude, null);
+});
+
+test("venue creation saves geocoded coordinates and preserves the entered address", async (context) => {
+  const coordinates = { latitude: 51.5201601, longitude: -0.1603064 };
+  const geocode = context.mock.method(geoapifyService, "geocode", async () => coordinates);
+  const input = {
+    ...venueInput,
+    name: `Geocoded venue ${runId}`,
+    latitude: null,
+    longitude: null,
+  };
+  const created = await addressService.create(input);
+  addressIds.push(created.id);
+  assert.equal(geocode.mock.callCount(), 1);
+  assert.equal(geocode.mock.calls[0].arguments[0], input.addressText);
+  assert.equal(created.addressText, input.addressText);
+  assert.equal(created.addressLine1, input.addressLine1);
+  assert.equal(created.latitude, coordinates.latitude);
+  assert.equal(created.longitude, coordinates.longitude);
+  const stored = await prisma.address.findUniqueOrThrow({ where: { id: created.id } });
+  assert.equal(stored.latitude, coordinates.latitude);
+  assert.equal(stored.longitude, coordinates.longitude);
+  assert.equal(stored.address_text, input.addressText);
+});
+
+test("manual coordinates including zero bypass geocoding", async (context) => {
+  const geocode = context.mock.method(geoapifyService, "geocode", async () => {
+    throw new Error("Manual coordinates must not call Geoapify.");
+  });
+  const created = await addressService.create({
+    ...venueInput,
+    name: `Manual venue ${runId}`,
+    latitude: 0,
+    longitude: 0,
+  });
+  addressIds.push(created.id);
+  assert.equal(geocode.mock.callCount(), 0);
+  assert.equal(created.latitude, 0);
+  assert.equal(created.longitude, 0);
+});
+
+test("failed geocoding leaves no venue in the database", async (context) => {
+  const geocode = context.mock.method(geoapifyService, "geocode");
+  const input = {
+    ...venueInput,
+    name: `Failed geocoding ${runId}`,
+    latitude: null,
+    longitude: null,
+  };
+  for (const reason of ["notFound", "unavailable"] as const) {
+    geocode.mock.mockImplementation(async () => {
+      throw new AddressGeocodingError(reason);
+    });
+    await assert.rejects(
+      addressService.create(input),
+      (error: unknown) => error instanceof AddressGeocodingError && error.reason === reason,
+    );
+    assert.equal(await prisma.address.count({ where: { name: input.name } }), 0);
+  }
 });
 
 test("creating an invitation persists a unique code and exposes the selected venue and message", async () => {
@@ -259,14 +320,13 @@ test("HTTP creates a venue then invitation and renders its real address and gues
     body: JSON.stringify({
       ...venueInput,
       name: "HTTP creation venue",
-      latitude: null,
-      longitude: null,
     }),
   });
   assert.equal(addressResponse.status, 201);
   const { data: address }: { data: AddressDto } = await addressResponse.json();
   addressIds.push(address.id);
-  assert.equal(address.latitude, null);
+  assert.equal(address.latitude, venueInput.latitude);
+  assert.equal(address.longitude, venueInput.longitude);
   const input = { ...invitationInput("http"), addressId: address.id };
   const response = await fetch(`${baseUrl}/api/invitations`, {
     method: "POST",
@@ -323,4 +383,85 @@ test("HTTP creates a venue then invitation and renders its real address and gues
     const body = await validation.json();
     assert.equal(body.error.details[0].field, "code");
   }
+});
+
+test("HTTP geocodes a real address and saves the provider coordinates", {
+  skip: !process.env.AUTH_TEST_BASE_URL || process.env.GEOAPIFY_TEST_LIVE !== "true",
+}, async () => {
+  const baseUrl = process.env.AUTH_TEST_BASE_URL ?? "http://localhost:3000";
+  const headers = {
+    Cookie: adminCookie,
+    Origin: new URL(baseUrl).origin,
+    "Content-Type": "application/json",
+  };
+  const input = {
+    ...venueInput,
+    name: `Live geocoding venue ${runId}`,
+    addressText: "38 Upper Montagu Street, Westminster W1H 1LJ, United Kingdom",
+    addressLine1: "38 Upper Montagu Street",
+    addressLine2: null,
+    postalCode: "W1H 1LJ",
+    city: "Westminster",
+    country: "United Kingdom",
+    latitude: null,
+    longitude: null,
+  };
+  const response = await fetch(`${baseUrl}/api/addresses`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(input),
+  });
+  assert.equal(response.status, 201);
+  const { data: address }: { data: AddressDto } = await response.json();
+  addressIds.push(address.id);
+  assert.ok(address.latitude !== null && address.latitude > 51.5 && address.latitude < 51.53);
+  assert.ok(address.longitude !== null && address.longitude > -0.18 && address.longitude < -0.14);
+  assert.equal(address.addressText, input.addressText);
+  const stored = await prisma.address.findUniqueOrThrow({ where: { id: address.id } });
+  assert.equal(stored.latitude, address.latitude);
+  assert.equal(stored.longitude, address.longitude);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.ok(response.headers.get("vary")?.includes("Cookie"));
+  const responseText = JSON.stringify(address);
+  assert.ok(!responseText.includes("apiKey"));
+  assert.ok(!responseText.includes(process.env.GEOAPIFY_API_KEY ?? "missing-test-key"));
+});
+
+test("HTTP refuses city-only geocoding and supports retrying with manual coordinates", {
+  skip: !process.env.AUTH_TEST_BASE_URL || process.env.GEOAPIFY_TEST_LIVE !== "true",
+}, async () => {
+  const baseUrl = process.env.AUTH_TEST_BASE_URL ?? "http://localhost:3000";
+  const headers = {
+    Cookie: adminCookie,
+    Origin: new URL(baseUrl).origin,
+    "Content-Type": "application/json",
+  };
+  const input = {
+    ...venueInput,
+    name: `Live geocoding fallback ${runId}`,
+    addressText: "London, United Kingdom",
+    latitude: null,
+    longitude: null,
+  };
+  const rejected = await fetch(`${baseUrl}/api/addresses`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(input),
+  });
+  assert.equal(rejected.status, 422);
+  const body = await rejected.json();
+  assert.equal(body.error.code, "GEOCODING_NOT_FOUND");
+  assert.equal(rejected.headers.get("cache-control"), "no-store");
+  assert.ok(rejected.headers.get("vary")?.includes("Cookie"));
+  assert.equal(await prisma.address.count({ where: { name: input.name } }), 0);
+  const response = await fetch(`${baseUrl}/api/addresses`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ ...input, latitude: 51.5201601, longitude: -0.1603064 }),
+  });
+  assert.equal(response.status, 201);
+  const { data: address }: { data: AddressDto } = await response.json();
+  addressIds.push(address.id);
+  assert.equal(address.latitude, 51.5201601);
+  assert.equal(address.longitude, -0.1603064);
 });
