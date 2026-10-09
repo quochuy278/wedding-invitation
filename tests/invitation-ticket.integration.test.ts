@@ -1,10 +1,11 @@
 import "dotenv/config";
 
 import assert from "node:assert/strict";
-import { after, before, test } from "node:test";
+import { after, before, mock, test } from "node:test";
 import jsQR from "jsqr";
 import { PNG } from "pngjs";
 import { prisma } from "@/server/db/prisma";
+import { brevoService } from "@/server/features/invitations/brevo.service";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationTicketService } from "@/server/features/invitations/invitation-ticket.service";
 import { issueInvitationTicketToken } from "@/server/features/invitations/invitation-ticket.token";
@@ -12,6 +13,7 @@ import type { CreatedInvitationDto } from "@/shared/contracts/invitation";
 import { generateId } from "@/shared/utils/id";
 
 const runId = generateId();
+const emailSender = mock.method(brevoService, "sendInvitation", async () => "<test-message>");
 const emails: string[] = [];
 let addressId: string;
 let saved: CreatedInvitationDto;
@@ -62,6 +64,7 @@ after(async () => {
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     if (addressId) await prisma.address.delete({ where: { id: addressId } });
   } finally {
+    emailSender.mock.restore();
     await prisma.$disconnect();
   }
 });

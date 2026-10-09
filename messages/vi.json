@@ -3,6 +3,24 @@
     "title": "Thiệp mời cưới",
     "description": "Thiệp mời cưới trực tuyến"
   },
+  "Email": {
+    "invitation": {
+      "subject": "Thiệp mời cưới Huy & Phụng dành cho bạn",
+      "label": "Trân trọng kính mời",
+      "couple": "Huy & Phụng",
+      "greeting": "Thân gửi {name},",
+      "intro": "Chúng mình trân trọng mời bạn đến chung vui trong ngày cưới. Bạn xem thiệp và xác nhận tham dự qua đường dẫn bên dưới nhé.",
+      "eventTime": "Thời gian tổ chức:",
+      "venue": "Địa điểm tổ chức",
+      "address": "Địa chỉ:",
+      "floor": "Tầng: {value}",
+      "entrance": "Lối vào: {value}",
+      "viewInvitation": "Xem thiệp mời",
+      "deadline": "Vui lòng xác nhận tham dự trước {value}.",
+      "fallbackLink": "Nếu nút bên trên không mở được, bạn có thể dùng đường dẫn này:",
+      "closing": "Rất mong được gặp bạn trong ngày vui của chúng mình."
+    }
+  },
   "ApiErrors": {
     "BAD_REQUEST": "Dữ liệu gửi lên không hợp lệ.",
     "UNAUTHORIZED": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",

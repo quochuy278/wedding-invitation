@@ -2,10 +2,11 @@ import "dotenv/config";
 
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { after, before, test } from "node:test";
+import { after, before, mock, test } from "node:test";
 import { prisma } from "@/server/db/prisma";
 import { hashPassword } from "@/server/features/auth/password";
 import { issueTokens } from "@/server/features/auth/token";
+import { brevoService } from "@/server/features/invitations/brevo.service";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { issueInvitationTicketToken } from "@/server/features/invitations/invitation-ticket.token";
 import { UserLevel } from "@/shared/contracts/auth";
@@ -14,6 +15,7 @@ import type { InvitationTicketVerificationDto } from "@/shared/contracts/invitat
 import { generateId } from "@/shared/utils/id";
 
 const baseUrl = process.env.AUTH_TEST_BASE_URL ?? "http://localhost:3000";
+const emailSender = mock.method(brevoService, "sendInvitation", async () => "<test-message>");
 const origin = process.env.AUTH_ORIGIN ?? new URL(baseUrl).origin;
 const endpoint = `${baseUrl}/api/invitation-tickets/verify`;
 const httpOptions = { skip: !process.env.AUTH_TEST_BASE_URL };
@@ -77,6 +79,7 @@ before(async () => {
 });
 
 after(async () => {
+  emailSender.mock.restore();
   try {
     await prisma.wish.deleteMany({ where: { invitation: { user_id: { in: userIds } } } });
     await prisma.invitation.deleteMany({ where: { user_id: { in: userIds } } });

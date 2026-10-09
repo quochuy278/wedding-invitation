@@ -1,12 +1,13 @@
 import "dotenv/config";
 
 import assert from "node:assert/strict";
-import { after, before, test } from "node:test";
+import { after, before, mock, test } from "node:test";
 import { prisma } from "@/server/db/prisma";
 import { AddressGeocodingError } from "@/server/features/addresses/address.errors";
 import { addressService } from "@/server/features/addresses/address.service";
 import { geoapifyService } from "@/server/features/addresses/geoapify.service";
 import { issueTokens } from "@/server/features/auth/token";
+import { BrevoEmailError, brevoService } from "@/server/features/invitations/brevo.service";
 import { InvitationCreationError } from "@/server/features/invitations/invitation.errors";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
@@ -17,6 +18,7 @@ import { now } from "@/shared/utils/date";
 import { generateId } from "@/shared/utils/id";
 
 const runId = generateId();
+const emailSender = mock.method(brevoService, "sendInvitation", async () => "<test-message>");
 const emails: string[] = [];
 const userIds: string[] = [];
 const addressIds: string[] = [];
@@ -106,6 +108,7 @@ after(async () => {
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     await prisma.address.deleteMany({ where: { id: { in: addressIds } } });
   } finally {
+    emailSender.mock.restore();
     await prisma.$disconnect();
   }
 });
@@ -218,12 +221,45 @@ test("a code collision retries atomically without creating an extra guest", asyn
   }
 });
 
+test("creation sends the saved invitation exactly once after the transaction commits", async (context) => {
+  const input = invitationInput("email-sent");
+  const send = context.mock.method(
+    brevoService,
+    "sendInvitation",
+    async (created: CreatedInvitationDto) => {
+      const stored = await prisma.invitation.findUniqueOrThrow({ where: { id: created.id } });
+      assert.equal(stored.code, created.code);
+      assert.equal(created.email, input.email);
+      assert.deepEqual(created.address, venue);
+      return "<accepted-message>";
+    },
+  );
+  const created = await invitationService.create(input);
+  assert.equal(send.mock.callCount(), 1);
+  assert.deepEqual(send.mock.calls[0].arguments, [created]);
+});
+
+test("an email failure keeps the saved invitation and does not retry sending", async (context) => {
+  const input = invitationInput("email-failed");
+  const send = context.mock.method(brevoService, "sendInvitation", async () => {
+    throw new BrevoEmailError("provider");
+  });
+  const log = context.mock.method(console, "error", () => {});
+  const created = await invitationService.create(input);
+  assert.equal(send.mock.callCount(), 1);
+  assert.deepEqual(log.mock.calls[0].arguments, ["Invitation email failed:", "provider"]);
+  assert.equal(await prisma.invitation.count({ where: { id: created.id } }), 1);
+  assert.equal((await invitationService.getByCode(created.code))?.code, created.code);
+});
+
 test("repeated code collisions stop retrying and roll back the guest", async (context) => {
   const existing = await invitationService.create(invitationInput("collision-exhausted-existing"));
   const generate = context.mock.method(invitationCodeGenerator, "generate", () => existing.code);
   try {
     const input = invitationInput("collision-exhausted");
+    const sendCount = emailSender.mock.callCount();
     await assert.rejects(invitationService.create(input), /unique invitation code/);
+    assert.equal(emailSender.mock.callCount(), sendCount);
     assert.equal(generate.mock.callCount(), 5);
     assert.equal(await prisma.user.count({ where: { email: input.email } }), 0);
   } finally {

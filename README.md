@@ -144,6 +144,20 @@ only when a component uses a query hook or invokes a service. For each new featu
 add its types and service under `services/<feature>/` and its query/mutation hooks
 under `hooks/queries/`.
 
+## Invitation email
+
+After an invitation is saved, the backend sends its guest an email directly through
+the Brevo transactional HTTP API. Configure `BREVO_API_KEY`,
+`BREVO_SENDER_EMAIL` (a verified Brevo sender), and `BREVO_SENDER_NAME` in `.env`.
+Set `APP_URL` to the public HTTPS website origin for invitation links; local
+development can fall back to `AUTH_ORIGIN`.
+
+This small Next.js project deliberately does **not use the outbox pattern**.
+Sending happens once in the creation request, after the database transaction
+commits, with an eight-second provider timeout. If sending fails, the invitation
+remains saved and the backend logs a sanitized error. There is no automatic retry
+or guarantee of delivery if the process stops between saving and sending.
+
 ## Internationalization
 
 The app uses `next-intl` with a fixed `vi` locale. Request configuration lives in

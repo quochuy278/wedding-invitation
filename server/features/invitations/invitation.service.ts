@@ -11,6 +11,7 @@ import type {
 } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
+import { BrevoEmailError, brevoService } from "./brevo.service";
 import { InvitationCreationError } from "./invitation.errors";
 import { invitationRepository, type PublicInvitationRecord } from "./invitation.repository";
 
@@ -39,7 +40,7 @@ export const invitationService = {
     const hasFutureDeadline = Date.parse(input.expiresAt) > now().valueOf();
     if (!hasFutureDeadline) throw new InvitationCreationError("expiredDeadline", ["expiresAt"]);
     const invitation = await invitationRepository.create(input);
-    return {
+    const created: CreatedInvitationDto = {
       id: invitation.id,
       code: invitation.code,
       status: invitation.status,
@@ -50,6 +51,13 @@ export const invitationService = {
       expiresAt: invitation.expires_at.toISOString(),
       personalMessage: invitation.personal_message,
     };
+    try {
+      await brevoService.sendInvitation(created);
+    } catch (error: unknown) {
+      const reason = error instanceof BrevoEmailError ? error.code : "unknown";
+      console.error("Invitation email failed:", reason);
+    }
+    return created;
   },
   async list(params: InvitationListParams): Promise<InvitationListDto> {
     const result = await invitationRepository.findPage(params);
