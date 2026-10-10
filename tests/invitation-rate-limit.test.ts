@@ -16,6 +16,8 @@ const paths = [
   "/invitation/ABC123",
   "/ticket/ABC123",
   "/api/invitations/ABC123/ticket/qr",
+  "/api/rsvps",
+  "/api/wishes",
 ];
 
 afterEach(() => {
@@ -27,7 +29,11 @@ function request(path: string, identity: string, headers?: HeadersInit): NextReq
   const input = new Headers(headers);
   input.set(testHeader, identity);
   return new NextRequest(`https://wedding.example${path}`, {
-    method: path === "/api/invitations/validate" ? "POST" : "GET",
+    method: ["/api/invitations/validate", "/api/rsvps", "/api/wishes"].some(
+      (endpoint) => path.split("?")[0] === endpoint,
+    )
+      ? "POST"
+      : "GET",
     headers: input,
   });
 }
@@ -114,4 +120,18 @@ test("the lookup budget recovers when its window expires", (context) => {
   assert.equal(proxy(request(paths[1], identity)).status, 429);
   context.mock.timers.tick(60_000);
   assert.equal(proxy(request(paths[2], identity)).headers.get("x-middleware-next"), "1");
+});
+
+test("admin response reads remain outside the guest write budget", () => {
+  process.env.TRUSTED_CLIENT_IP_HEADER = testHeader;
+  const identity = randomUUID();
+  for (let index = 0; index < 60; index++) proxy(request(paths[0], identity));
+  assert.equal(proxy(request("/api/rsvps", identity)).status, 429);
+  assert.equal(proxy(request("/api/wishes", identity)).status, 429);
+  for (const path of ["/api/rsvps", "/api/wishes?code=ABC123"]) {
+    const input = new NextRequest(`https://wedding.example${path}`, {
+      headers: { [testHeader]: identity },
+    });
+    assert.equal(proxy(input).headers.get("x-middleware-next"), "1");
+  }
 });

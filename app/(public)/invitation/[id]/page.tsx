@@ -36,6 +36,9 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
     .format(date)
     .replaceAll("/", ".");
   const hero = {
+    code: invitation.code,
+    status: invitation.status,
+    guestCount: invitation.guestCount,
     date: invitation.address.eventAt,
     displayDate,
     guestName: invitation.guest.fullName,
@@ -48,7 +51,11 @@ export default async function InvitationPage({ params }: { params: Promise<{ id:
       <InvitationSchedule eventAt={invitation.address.eventAt} timeZone={timeZone} />
       <InvitationVenue venue={invitation.address} />
       <InvitationNote personalMessage={invitation.personalMessage} />
-      <InvitationWishes />
+      <InvitationWishes
+        code={invitation.code}
+        guestName={invitation.guest.fullName}
+        wishes={invitation.wishes}
+      />
     </>
   );
 }

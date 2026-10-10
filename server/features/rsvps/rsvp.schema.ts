@@ -5,6 +5,8 @@ import {
   type ParseResult,
   type ValidationError,
 } from "@/server/shared/validation/schema";
+import { guestResponseLimits } from "@/shared/contracts/guest-response";
+import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
 import type { Attendance, CreateRsvpInput } from "./rsvp.types";
 
 export function createRsvpInputSchema(value: unknown): ParseResult<CreateRsvpInput> {
@@ -16,16 +18,13 @@ export function createRsvpInputSchema(value: unknown): ParseResult<CreateRsvpInp
   }
 
   const errors: ValidationError[] = [];
-  const guestName = typeof value.guestName === "string" ? value.guestName.trim() : "";
+  const code = typeof value.code === "string" ? normalizeInvitationCode(value.code) : "";
   const attendance = value.attendance;
   const guestCount = value.guestCount;
-  const message =
-    typeof value.message === "string" && value.message.trim() ? value.message.trim() : null;
-
-  if (guestName.length < 2 || guestName.length > 100) {
+  if (!isInvitationCode(code)) {
     errors.push({
-      field: "guestName",
-      message: "Must contain between 2 and 100 characters.",
+      field: "code",
+      message: "Must be a six-character invitation code.",
     });
   }
 
@@ -36,17 +35,15 @@ export function createRsvpInputSchema(value: unknown): ParseResult<CreateRsvpInp
     });
   }
 
-  if (!Number.isInteger(guestCount) || Number(guestCount) < 0 || Number(guestCount) > 10) {
+  const validCount =
+    Number.isInteger(guestCount) &&
+    (attendance === "yes"
+      ? Number(guestCount) >= 1 && Number(guestCount) <= guestResponseLimits.maxGuestCount
+      : attendance === "no" && guestCount === 0);
+  if (!validCount) {
     errors.push({
       field: "guestCount",
-      message: "Must be an integer between 0 and 10.",
-    });
-  }
-
-  if (message && message.length > 500) {
-    errors.push({
-      field: "message",
-      message: "Must not exceed 500 characters.",
+      message: `Must be 1–${guestResponseLimits.maxGuestCount} for attendance or zero when declining.`,
     });
   }
 
@@ -57,10 +54,9 @@ export function createRsvpInputSchema(value: unknown): ParseResult<CreateRsvpInp
   return {
     success: true,
     data: {
-      guestName,
+      code,
       attendance: attendance as Attendance,
       guestCount: Number(guestCount),
-      message,
     },
   };
 }

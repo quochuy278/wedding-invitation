@@ -4,10 +4,17 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import ribbonBowImage from "@/public/assets/images/ornament-ribbon-bow.png";
 import { HeartDivider, InvitationHeartIcon } from "./heart-divider";
-import { InvitationButton } from "./invitation-button";
 import { Botanical } from "./invitation-decorations";
+import { InvitationRsvp } from "./invitation-rsvp";
 
-type HeroInvitation = { date: string; displayDate: string; guestName: string };
+type HeroInvitation = {
+  date: string;
+  displayDate: string;
+  guestName: string;
+  code: string;
+  status: string;
+  guestCount: number;
+};
 
 export function InvitationHero({
   invitation,
@@ -43,7 +50,12 @@ export function InvitationHero({
           {invitation.displayDate}
         </time>
         <p className="mb-4 text-base font-medium">{t("guest", { name: invitation.guestName })}</p>
-        <InvitationButton id="rsvp">{t("rsvp")}</InvitationButton>
+        <InvitationRsvp
+          code={invitation.code}
+          guestName={invitation.guestName}
+          status={invitation.status}
+          guestCount={invitation.guestCount}
+        />
         <div className="mt-3">
           <Link
             href={ticketHref}

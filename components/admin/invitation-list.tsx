@@ -36,12 +36,13 @@ import {
   type InvitationListParams,
   invitationPaginationDefaults,
 } from "@/shared/contracts/invitation";
+import { InvitationWishDialog } from "./invitation-wish-dialog";
 
 const loadingRowKeys = Array.from(
   { length: invitationPaginationDefaults.pageSize },
   (_, index) => `loading-row-${index}`,
 );
-const columnKeys = ["guest", "code", "status", "guestCount", "updatedAt"] as const;
+const columnKeys = ["guest", "code", "status", "guestCount", "updatedAt", "wishes"] as const;
 
 function visiblePageNumbers(page: number, totalPages: number): number[] {
   const shouldShowAllPages: boolean = totalPages <= 7;
@@ -175,6 +176,9 @@ export function InvitationList(): ReactElement {
         <TableCell>{statusBadge}</TableCell>
         <TableCell className="text-center">{invitation.guestCount}</TableCell>
         <TableCell className="whitespace-nowrap text-muted-foreground">{updatedAt}</TableCell>
+        <TableCell>
+          <InvitationWishDialog code={invitation.code} guestName={invitation.guestName} />
+        </TableCell>
       </TableRow>
     );
   }
@@ -247,6 +251,7 @@ export function InvitationList(): ReactElement {
                     <TableHead>{t("status")}</TableHead>
                     <TableHead className="text-center">{t("guestCount")}</TableHead>
                     <TableHead>{t("updatedAt")}</TableHead>
+                    <TableHead>{t("wishes")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -262,7 +267,10 @@ export function InvitationList(): ReactElement {
                     ))
                   ) : isListEmpty ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-12 text-center text-muted-foreground">
+                      <TableCell
+                        colSpan={columnKeys.length}
+                        className="py-12 text-center text-muted-foreground"
+                      >
                         {t("empty")}
                       </TableCell>
                     </TableRow>

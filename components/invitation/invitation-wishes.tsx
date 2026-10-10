@@ -1,9 +1,18 @@
 import { useTranslations } from "next-intl";
+import type { InvitationWishDto } from "@/shared/contracts/invitation";
 import { HeartDivider } from "./heart-divider";
-import { InvitationButton } from "./invitation-button";
 import { Botanical } from "./invitation-decorations";
+import { InvitationWishForm } from "./invitation-wish-form";
 
-export function InvitationWishes() {
+export function InvitationWishes({
+  code,
+  guestName,
+  wishes,
+}: {
+  code: string;
+  guestName: string;
+  wishes: InvitationWishDto[];
+}) {
   const t = useTranslations("Invitation.wishes");
   const couple = useTranslations("Invitation.couple");
 
@@ -26,7 +35,7 @@ export function InvitationWishes() {
         <p className="mx-auto mt-2 max-w-[290px] text-[13px] leading-relaxed sm:max-w-xl">
           {t("description")}
         </p>
-        <InvitationButton className="mt-4">{t("submit")}</InvitationButton>
+        <InvitationWishForm code={code} guestName={guestName} initialWishes={wishes} />
         <p className="mt-4 font-heading text-[28px] text-wedding-wine italic">
           {t("closing", { groom: couple("groom"), bride: couple("bride") })}
         </p>

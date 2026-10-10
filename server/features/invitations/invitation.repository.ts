@@ -74,7 +74,7 @@ type InvitationRepository = {
   findActiveByCode(code: string): Promise<PublicInvitationRecord | null>;
 };
 
-function activeInvitationWhere(code: string): Prisma.InvitationWhereInput {
+export function activeInvitationWhere(code: string): Prisma.InvitationWhereInput {
   const currentDate: Date = now().toDate();
   return {
     code,

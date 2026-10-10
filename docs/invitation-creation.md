@@ -55,7 +55,7 @@ The home form displays six code slots and opens the invitation by its code. Typi
 
 This version stores the guest email and invitation only. It does not send email, create an email queue, or mark anything as sent. The UI states this explicitly. Prototype guest-group and maximum-guest controls were removed because the existing model has no corresponding fields; `guest_count` is an attendance count, not an invitation capacity.
 
-RSVP and wishes submission behavior is unchanged.
+RSVP and wishes submissions use the persisted flows described in [guest responses](guest-responses.md).
 
 ## Verification
 

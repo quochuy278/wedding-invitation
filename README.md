@@ -13,6 +13,7 @@ app/
       [code]/route.ts      # GET /api/invitations/:code
       validate/route.ts    # POST /api/invitations/validate
     rsvps/route.ts         # GET, POST /api/rsvps
+    wishes/route.ts        # POST guest wish; GET wishes by code (admin)
 shared/
   contracts/
     invitation.ts          # API DTO shared by server and future clients
@@ -54,10 +55,10 @@ display an error with retry instead of fabricated counts. Creating an invitation
 invalidates the shared cache. The dashboard page and the list API each require an
 active admin session.
 
-Public invitation reads share a 60-request / 60-second burst budget at `proxy.ts`,
+Public invitation reads and guest response writes share a 60-request / 60-second burst budget at `proxy.ts`,
 before route handling, database lookups or QR rendering. This includes
 `/invitation/:code`, `/ticket/:code`, `/api/invitations/:code`, validation and QR
-downloads, including RSC and prefetch requests. Switching paths or codes does not
+downloads, RSVP and wish submissions, including RSC and prefetch requests. Switching paths or codes does not
 renew the budget. Each request counts once; protected admin list/create routes
 remain outside this public lookup guard.
 
@@ -70,7 +71,8 @@ budget. Guests can open invitation and ticket pages by code without login.
 
 The invitation HTTP APIs additionally require the temporary shared
 `X-Api-Key` header: `GET /api/invitations/:code`,
-`POST /api/invitations/validate` and `GET /api/invitations/:code/ticket/qr`.
+`POST /api/invitations/validate`, `GET /api/invitations/:code/ticket/qr`,
+`POST /api/rsvps` and `POST /api/wishes`.
 The hardcoded value and header are in `shared/contracts/guest-api.ts`; browser
 invitation services attach the header automatically. Missing or incorrect keys
 return `403 FORBIDDEN` before parsing bodies, querying the database or generating
@@ -80,7 +82,8 @@ This key is public in the browser bundle and can be copied. It blocks API calls
 that omit the header, but does not authenticate a guest or prevent code guessing
 by someone who knows the key. Invitation availability and code checks still
 apply. Direct invitation/ticket pages remain accessible by code; no guest session
-or JWT is issued, and the key grants no admin access or RSVP authorization.
+or JWT is issued, and the key grants no admin access. Guest response writes also
+require a valid active invitation code; names cannot be supplied as identity.
 To rotate the temporary key, edit the shared constant and rebuild/deploy both
 client and server together.
 
@@ -90,9 +93,11 @@ server. Its identity header must match that server's `TRUSTED_CLIENT_IP_HEADER`.
 The test creates and removes its own database fixture without calling email or
 geocoding providers.
 
-The RSVP repository currently uses in-memory demo data, which resets whenever the
-server process restarts and is not suitable for deployment. Replace only
-`rsvp.repository.ts` when adding Prisma, Drizzle, or another database layer.
+Attendance and wishes are persisted with Prisma in the existing invitation and
+wish tables. Guests can confirm or decline, update their attendee count, and send
+wishes through dialogs on their invitation. Admins see updated counts in the
+overview/list and can open each guest's wishes from the list. See
+[guest response flows](docs/guest-responses.md) for contracts and verification.
 
 Try the API after running `pnpm dev`:
 
@@ -108,8 +113,13 @@ curl -X POST http://localhost:3000/api/invitations/validate \
   -d '{"code":"INVITATION_CODE"}'
 curl http://localhost:3000/api/rsvps
 curl -X POST http://localhost:3000/api/rsvps \
+  -H "X-Api-Key: $GUEST_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"guestName":"An Nguyen","attendance":"yes","guestCount":2,"message":"See you!"}'
+  -d '{"code":"INVITATION_CODE","attendance":"yes","guestCount":2}'
+curl -X POST http://localhost:3000/api/wishes \
+  -H "X-Api-Key: $GUEST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"INVITATION_CODE","content":"Congratulations!"}'
 ```
 
 ## Client API services
@@ -143,8 +153,9 @@ require rebuilding because Next.js bundles public environment variables at build
 time. The Axios request timeout is 15 seconds.
 
 Services handle HTTP requests and return the data inside the API's `{ data }`
-envelope. Hooks manage loading state, errors, and caching. Axios errors retain the
-API response, available through `error.response?.data.error.message` when present.
+envelope. Hooks manage loading state, errors, and caching. Axios failures resolve
+to shared error codes, HTTP status and field details; interface components translate
+the codes through `ApiErrors`.
 
 The query defaults keep data fresh for 60 seconds, retry failed reads once, and
 disable refetching on window focus. Mutations are not retried. Creating an RSVP
@@ -165,7 +176,7 @@ export function RsvpSummary() {
 
   if (isPending) return <p>Loading...</p>;
   if (error) {
-    return <p>{error.response?.data.error.message ?? error.message}</p>;
+    return <p>{error.code}</p>;
   }
 
   return (
@@ -174,10 +185,9 @@ export function RsvpSummary() {
       disabled={isSubmitting}
       onClick={() =>
         createRsvp({
-          guestName: "An Nguyen",
+          code: "ABC123",
           attendance: "yes",
           guestCount: 2,
-          message: null,
         })
       }
     >
@@ -187,8 +197,8 @@ export function RsvpSummary() {
 }
 ```
 
-The invitation UI still uses its current fixture. This scaffold starts API calls
-only when a component uses a query hook or invokes a service. For each new feature,
+The invitation UI reads its initial data from the database and uses mutation hooks
+for RSVP and wish submissions. For each new feature,
 add its types and service under `services/<feature>/` and its query/mutation hooks
 under `hooks/queries/`.
 

@@ -123,6 +123,15 @@
       "listDescription": "Xem trạng thái phản hồi, số người tham dự và phân trang danh sách.",
       "openList": "Xem danh sách"
     },
+    "wishes": {
+      "title": "Lời chúc của khách",
+      "view": "Xem lời chúc",
+      "viewFor": "Xem lời chúc của {name}",
+      "from": "{name} · Mã thiệp {code}",
+      "loading": "Đang tải lời chúc…",
+      "empty": "Khách chưa gửi lời chúc cho thiệp này.",
+      "retry": "Thử lại"
+    },
     "createInvitation": {
       "title": "Tạo thiệp mời",
       "description": "Tạo thiệp riêng cho khách và chọn địa điểm tổ chức đã lưu.",
@@ -176,6 +185,7 @@
       "status": "Trạng thái",
       "guestCount": "Số khách",
       "updatedAt": "Ngày cập nhật",
+      "wishes": "Lời chúc",
       "loading": "Đang tải danh sách…",
       "empty": "Chưa có thiệp mời nào.",
       "retry": "Thử lại",
@@ -352,10 +362,39 @@
       "lineTwo": "là niềm vui lớn nhất",
       "lineThree": "đối với chúng mình."
     },
+    "rsvp": {
+      "trigger": "Xác nhận tham dự",
+      "edit": "Thay đổi xác nhận",
+      "title": "Hẹn bạn trong ngày vui",
+      "description": "{name} ơi, cho chúng mình biết bạn có thể đến chung vui nhé!",
+      "attendance": "Bạn có thể tham dự không?",
+      "yes": "Mình sẽ tham dự",
+      "no": "Rất tiếc, mình không thể tham dự",
+      "guestCount": "Tổng số người tham dự",
+      "countHint": "Bao gồm cả bạn và những người đi cùng. Nếu đến một mình, bạn nhập 1 nhé.",
+      "submit": "Lưu xác nhận",
+      "saving": "Đang lưu…",
+      "cancel": "Để sau",
+      "accepted": "Đã xác nhận tham dự: {count} người. Hẹn gặp bạn nhé!",
+      "declined": "Đã ghi nhận bạn không thể tham dự. Cảm ơn bạn đã phản hồi!",
+      "invalidCount": "Nhập tổng số người bằng số nguyên từ 1 trở lên nhé.",
+      "unavailable": "Thiệp này đã hết hạn hoặc không còn hiệu lực nên chưa thể lưu phản hồi."
+    },
     "wishes": {
       "heading": "Lời chúc yêu thương",
       "description": "Gửi một lời chúc đến chúng mình trong ngày đặc biệt này nhé!",
       "submit": "Gửi lời chúc",
+      "formTitle": "Gửi một lời chúc yêu thương",
+      "fromGuest": "Lời chúc từ {name} dành cho Huy & Phụng.",
+      "contentLabel": "Lời chúc của bạn",
+      "placeholder": "Viết lời chúc dành cho chúng mình…",
+      "characterCount": "{count}/{max} ký tự",
+      "cancel": "Để sau",
+      "sending": "Đang gửi…",
+      "success": "Chúng mình đã nhận được lời chúc của bạn. Cảm ơn bạn nhiều!",
+      "sentWishes": "Lời chúc bạn đã gửi ({count})",
+      "invalidContent": "Viết lời chúc từ 1 đến {max} ký tự nhé.",
+      "unavailable": "Thiệp này đã hết hạn hoặc không còn hiệu lực nên chưa thể gửi lời chúc.",
       "closing": "Thân mến, {groom} & {bride}"
     }
   },

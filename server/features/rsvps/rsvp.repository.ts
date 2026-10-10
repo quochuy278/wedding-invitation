@@ -1,28 +1,49 @@
 import "server-only";
 
-import { now } from "@/shared/utils/date";
-import { generateId } from "@/shared/utils/id";
-import type { CreateRsvpInput, Rsvp } from "./rsvp.types";
+import type { Prisma } from "@/generated/prisma/client";
+import { prisma } from "@/server/db/prisma";
+import { activeInvitationWhere } from "@/server/features/invitations/invitation.repository";
+import type { CreateRsvpInput } from "./rsvp.types";
 
-// Demo storage only. Replace this module with a database implementation later.
-const rsvps: Rsvp[] = [];
+const rsvpSelect = {
+  id: true,
+  code: true,
+  status: true,
+  guest_count: true,
+  updated_at: true,
+  user: { select: { full_name: true } },
+} as const satisfies Prisma.InvitationSelect;
+
+export type RsvpRecord = Prisma.InvitationGetPayload<{ select: typeof rsvpSelect }>;
 
 export const rsvpRepository = {
-  async findMany(): Promise<Rsvp[]> {
-    return [...rsvps];
+  findMany(): Promise<RsvpRecord[]> {
+    return prisma.invitation.findMany({
+      where: {
+        status: { in: ["accepted", "declined"] },
+        deleted_at: null,
+        user: { deleted_at: null },
+      },
+      select: rsvpSelect,
+      orderBy: [{ updated_at: "desc" }, { id: "desc" }],
+    });
   },
 
-  async create(input: CreateRsvpInput): Promise<Rsvp> {
-    const id: string = generateId();
-    const createdAt: string = now().toISOString();
-    const rsvp: Rsvp = {
-      id,
-      ...input,
-      createdAt,
-    };
-
-    rsvps.push(rsvp);
-
-    return rsvp;
+  create(input: CreateRsvpInput): Promise<RsvpRecord | null> {
+    return prisma.$transaction(async (transaction) => {
+      // Eligibility is checked in the write, rather than in a separate lookup.
+      const result = await transaction.invitation.updateMany({
+        where: activeInvitationWhere(input.code),
+        data: {
+          status: input.attendance === "yes" ? "accepted" : "declined",
+          guest_count: input.guestCount,
+        },
+      });
+      if (result.count === 0) return null;
+      return transaction.invitation.findUniqueOrThrow({
+        where: { code: input.code },
+        select: rsvpSelect,
+      });
+    });
   },
 };
