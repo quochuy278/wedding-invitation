@@ -2,7 +2,8 @@ import "server-only";
 
 import type { InvitationDto, InvitationTicketDto } from "@/shared/contracts/invitation";
 import type { InvitationTicketVerificationDto } from "@/shared/contracts/invitation-ticket";
-import { invitationService } from "./invitation.service";
+import { invitationRepository } from "./invitation.repository";
+import { invitationService, toInvitationDto } from "./invitation.service";
 import { renderInvitationTicketQr } from "./invitation-ticket.qr";
 import {
   issueInvitationTicketToken,
@@ -19,7 +20,7 @@ export const invitationTicketService = {
     return { invitation, qrValue, qrDataUrl };
   },
 
-  // Verify authenticity against current data without recording check-in.
+  // Public ticket reads and authenticity checks never record attendance.
   async verify(qrValue: string): Promise<InvitationDto | null> {
     const code = readInvitationTicketCode(qrValue);
     if (!code) return null;
@@ -30,10 +31,18 @@ export const invitationTicketService = {
   },
 
   async verifyForAdmin(qrValue: string): Promise<InvitationTicketVerificationDto> {
-    const invitation = await invitationTicketService.verify(qrValue);
-    if (!invitation) return { isValid: false, invitation: null };
+    const verified = await invitationTicketService.verify(qrValue);
+    if (!verified) return { isValid: false, invitation: null };
+    const result = await invitationRepository.checkIn(verified);
+    if (!result) return { isValid: false, invitation: null };
+    const invitation = toInvitationDto(result.record);
     return {
       isValid: true,
+      checkIn: result.recorded
+        ? "recorded"
+        : invitation.status === "attended"
+          ? "alreadyAttended"
+          : "notConfirmed",
       invitation: {
         code: invitation.code,
         guestName: invitation.guest.fullName,

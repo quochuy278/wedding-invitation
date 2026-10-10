@@ -7,6 +7,7 @@ import { POST as postRsvp } from "@/app/api/rsvps/route";
 import { POST as postWish } from "@/app/api/wishes/route";
 import { apiClient } from "@/lib/api/client";
 import { ApiErrorCode } from "@/lib/api/types";
+import { RsvpAlreadyAttendedError } from "@/server/features/rsvps/rsvp.errors";
 import { createRsvpInputSchema } from "@/server/features/rsvps/rsvp.schema";
 import { rsvpService } from "@/server/features/rsvps/rsvp.service";
 import { createWishInputSchema } from "@/server/features/wishes/wish.schema";
@@ -172,4 +173,16 @@ test("client sends guest key for response writes and leaves admin reads protecte
   } finally {
     apiClient.defaults.adapter = original;
   }
+});
+
+test("an attended invitation returns conflict rather than overwriting check-in", async () => {
+  mock.method(rsvpService, "create", async () => {
+    throw new RsvpAlreadyAttendedError();
+  });
+  const response = await postRsvp(
+    request(JSON.stringify({ code: "ABC123", attendance: "no", guestCount: 0 })),
+  );
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error.code, ApiErrorCode.Conflict);
+  assert.equal(response.headers.get("cache-control"), "no-store");
 });

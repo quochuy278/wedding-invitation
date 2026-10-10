@@ -10,6 +10,7 @@ import type {
   InvitationListParams,
 } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
+import { isConfirmedInvitationStatus } from "@/shared/utils/invitation-status";
 import { InvitationCreationError } from "./invitation.errors";
 import { invitationCodeGenerator } from "./invitation-code";
 
@@ -72,6 +73,11 @@ type InvitationRepository = {
   findPage(params: InvitationListParams): Promise<InvitationListResult>;
   findActiveIdByCode(code: string): Promise<InvitationIdRecord | null>;
   findActiveByCode(code: string): Promise<PublicInvitationRecord | null>;
+  checkIn(invitation: {
+    id: string;
+    code: string;
+    expiresAt: string;
+  }): Promise<{ record: PublicInvitationRecord; recorded: boolean } | null>;
 };
 
 export function activeInvitationWhere(code: string): Prisma.InvitationWhereInput {
@@ -168,7 +174,7 @@ export const invitationRepository: InvitationRepository = {
         const totalItems: number = groups.reduce((total, group) => total + group._count._all, 0);
         const totalPages: number = Math.max(1, Math.ceil(totalItems / params.pageSize));
         const page: number = Math.min(params.page, totalPages);
-        const accepted = groups.find((group) => group.status === "accepted");
+        const confirmed = groups.filter((group) => isConfirmedInvitationStatus(group.status));
         const pending = groups.find((group) => group.status === "pending");
         const items: InvitationListRecord[] = await transaction.invitation.findMany({
           where,
@@ -182,14 +188,37 @@ export const invitationRepository: InvitationRepository = {
           pagination: { page, pageSize: params.pageSize, totalItems, totalPages },
           summary: {
             totalInvitations: totalItems,
-            acceptedInvitations: accepted?._count._all ?? 0,
-            acceptedGuests: accepted?._sum.guest_count ?? 0,
+            acceptedInvitations: confirmed.reduce((total, group) => total + group._count._all, 0),
+            acceptedGuests: confirmed.reduce(
+              (total, group) => total + (group._sum.guest_count ?? 0),
+              0,
+            ),
             pendingInvitations: pending?._count._all ?? 0,
           },
         };
       },
       { isolationLevel: "RepeatableRead" },
     );
+  },
+
+  checkIn(invitation) {
+    return prisma.$transaction(async (transaction) => {
+      // Recheck the signed identity, deadline and eligibility in the write itself.
+      const where: Prisma.InvitationWhereInput = {
+        ...activeInvitationWhere(invitation.code),
+        id: invitation.id,
+        AND: [{ expires_at: new Date(invitation.expiresAt) }],
+      };
+      const result = await transaction.invitation.updateMany({
+        where: { ...where, status: "accepted" },
+        data: { status: "attended" },
+      });
+      const record = await transaction.invitation.findFirst({
+        where,
+        select: publicInvitationSelect,
+      });
+      return record ? { record, recorded: result.count === 1 } : null;
+    });
   },
 
   findActiveIdByCode(code: string): Promise<InvitationIdRecord | null> {

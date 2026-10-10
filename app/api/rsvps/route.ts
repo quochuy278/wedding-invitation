@@ -1,6 +1,7 @@
 import { ApiErrorCode } from "@/lib/api/types";
 import { authError, getAdminSession, privateResponse } from "@/server/features/auth/auth.http";
 import { requireGuestApiKey } from "@/server/features/invitations/invitation.http";
+import { RsvpAlreadyAttendedError } from "@/server/features/rsvps/rsvp.errors";
 import { createRsvpInputSchema } from "@/server/features/rsvps/rsvp.schema";
 import { rsvpService } from "@/server/features/rsvps/rsvp.service";
 import { badRequest, notFound, ok } from "@/server/shared/http/api-response";
@@ -37,6 +38,9 @@ export async function POST(request: Request): Promise<Response> {
     const rsvp = await rsvpService.create(parsed.data);
     return rsvp ? ok(rsvp) : notFound("Invitation is unavailable or has expired.");
   } catch (error: unknown) {
+    if (error instanceof RsvpAlreadyAttendedError) {
+      return authError(ApiErrorCode.Conflict, "Attendance has already been recorded.", 409);
+    }
     console.error("RSVP save failed:", error instanceof Error ? error.name : "UnknownError");
     return authError(ApiErrorCode.Unavailable, "RSVP could not be saved.", 503);
   }

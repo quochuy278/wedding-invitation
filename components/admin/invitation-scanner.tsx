@@ -3,7 +3,6 @@
 import {
   CameraIcon,
   CheckCircle2Icon,
-  ImagePlusIcon,
   Loader2Icon,
   ScanLineIcon,
   ShieldCheckIcon,
@@ -11,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ChangeEvent, type ReactElement, useRef } from "react";
+import type { ReactElement } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +38,7 @@ function VerifiedTicket({ invitation }: { invitation: VerifiedInvitationTicketDt
   const expiryTime = new Intl.DateTimeFormat("vi-VN", dateOptions).format(
     new Date(invitation.expiresAt),
   );
-  const knownStatus = ["accepted", "pending", "declined"].includes(invitation.status);
+  const knownStatus = ["accepted", "pending", "declined", "attended"].includes(invitation.status);
   const statusLabel = knownStatus ? statuses(invitation.status) : invitation.status;
   const invitationHref = `/invitation/${invitation.code}`;
   const floorLabel = address.floor ? t("floorValue", { value: address.floor }) : null;
@@ -103,12 +102,21 @@ function VerifiedTicket({ invitation }: { invitation: VerifiedInvitationTicketDt
 
 function ScanResult({ result }: { result: InvitationTicketVerificationDto }): ReactElement {
   const t = useTranslations("Admin.scan");
-  const title = result.isValid ? t("validTitle") : t("invalidTitle");
-  const description = result.isValid ? t("validDescription") : t("invalidDescription");
-  const color = result.isValid ? "text-emerald-700" : "text-destructive";
+  const resultKey = result.isValid ? result.checkIn : "invalid";
+  const title = t(`${resultKey}Title`);
+  const description = t(`${resultKey}Description`);
+  const color = !result.isValid
+    ? "text-destructive"
+    : result.checkIn === "recorded"
+      ? "text-emerald-700"
+      : "text-amber-700";
   const iconClassName = `mt-0.5 size-6 shrink-0 ${color}`;
   const titleClassName = `font-heading text-xl ${color}`;
-  const ResultIcon = result.isValid ? CheckCircle2Icon : XCircleIcon;
+  const ResultIcon = !result.isValid
+    ? XCircleIcon
+    : result.checkIn === "recorded"
+      ? CheckCircle2Icon
+      : ShieldCheckIcon;
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3" role="status">
@@ -127,16 +135,13 @@ export function InvitationScanner(): ReactElement {
   const t = useTranslations("Admin.scan");
   const apiErrors = useTranslations("ApiErrors");
   const scanner = useTicketScanner();
-  const fileRef = useRef<HTMLInputElement>(null);
   const { state } = scanner;
   const cameraActive = state.phase === "requesting" || state.phase === "scanning";
-  const processing = state.phase === "readingImage" || state.phase === "verifying";
+  const processing = state.phase === "verifying";
   const busy = cameraActive || processing;
   const busyLabel = busy ? t(state.phase) : "";
   const cameraClassName = cameraActive ? "h-full w-full object-cover" : "hidden";
-  const cameraError =
-    state.phase === "scannerError" &&
-    !["invalidImage", "imageTooLarge", "noQr"].includes(state.code);
+  const cameraError = state.phase === "scannerError";
   const cameraButtonLabel = cameraError ? t("retryCamera") : t("startCamera");
   const cameraDisabled = !scanner.canUseCamera;
   const cameraOffLabel = cameraDisabled ? t("desktopCameraOff") : t("cameraOff");
@@ -144,14 +149,6 @@ export function InvitationScanner(): ReactElement {
 
   function handleStartCamera(): void {
     void scanner.startCamera();
-  }
-  function handleChooseImage(): void {
-    fileRef.current?.click();
-  }
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>): void {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (file) void scanner.scanImage(file);
   }
   function handleRetry(): void {
     void scanner.retryVerification();
@@ -209,30 +206,15 @@ export function InvitationScanner(): ReactElement {
                   {cameraButtonLabel}
                 </Button>
               )}
-              {!busy && (
-                <Button onClick={handleChooseImage} type="button" variant="outline">
-                  <ImagePlusIcon />
-                  {t("chooseImage")}
-                </Button>
-              )}
               {busy && (
                 <Button onClick={scanner.reset} type="button" variant="outline">
                   {t("stop")}
                 </Button>
               )}
-              <input
-                accept="image/png,image/jpeg,image/webp"
-                aria-label={t("chooseImage")}
-                className="hidden"
-                onChange={handleFileChange}
-                ref={fileRef}
-                type="file"
-              />
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground" id="scanner-camera-hint">
               {permissionHint}
             </p>
-            <p className="text-xs leading-relaxed text-muted-foreground">{t("imageHint")}</p>
           </CardContent>
         </Card>
         <Card>

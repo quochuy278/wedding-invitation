@@ -1,12 +1,13 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invitationQueryKeys } from "@/hooks/queries/use-invitations";
+import { rsvpQueryKeys } from "@/hooks/queries/use-rsvps";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type ResolvedApiError, resolveApiError } from "@/lib/api/error-resolver";
 import {
   createBrowserQrCamera,
-  readQrImage,
   type ScannerErrorCode,
   scannerErrorCode,
 } from "@/lib/qr/browser-scanner";
@@ -18,7 +19,7 @@ import type {
 } from "@/shared/contracts/invitation-ticket";
 
 type ScannerState =
-  | { phase: "idle" | "requesting" | "scanning" | "readingImage" | "verifying" }
+  | { phase: "idle" | "requesting" | "scanning" | "verifying" }
   | { phase: "result"; result: InvitationTicketVerificationDto }
   | { phase: "scannerError"; code: ScannerErrorCode }
   | { phase: "apiError"; error: ResolvedApiError };
@@ -32,6 +33,7 @@ async function verifyTicket(
 }
 
 export function useTicketScanner() {
+  const queryClient = useQueryClient();
   const canUseCamera = useIsMobile();
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraRef = useRef<QrCamera | null>(null);
@@ -46,6 +48,11 @@ export function useTicketScanner() {
   >({
     mutationFn: verifyTicket,
     retry: false,
+    onSuccess: (result) => {
+      if (!result.isValid || result.checkIn === "notConfirmed") return;
+      void queryClient.invalidateQueries({ queryKey: invitationQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: rsvpQueryKeys.all });
+    },
   });
 
   const stopWork = useCallback(function stopWork(): void {
@@ -126,20 +133,6 @@ export function useTicketScanner() {
     if (started && generation === generationRef.current) setState({ phase: "scanning" });
   }
 
-  async function scanImage(file: File): Promise<void> {
-    stopWork();
-    lastValueRef.current = null;
-    const generation = generationRef.current;
-    setState({ phase: "readingImage" });
-    try {
-      const value = await readQrImage(file);
-      await verify(value, generation);
-    } catch (error: unknown) {
-      if (generation !== generationRef.current) return;
-      setState({ phase: "scannerError", code: scannerErrorCode(error) });
-    }
-  }
-
   async function retryVerification(): Promise<void> {
     const value = lastValueRef.current;
     if (!value) return;
@@ -147,5 +140,5 @@ export function useTicketScanner() {
     await verify(value, generationRef.current);
   }
 
-  return { state, videoRef, canUseCamera, startCamera, scanImage, reset, retryVerification };
+  return { state, videoRef, canUseCamera, startCamera, reset, retryVerification };
 }

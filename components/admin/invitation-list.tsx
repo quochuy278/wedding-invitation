@@ -118,6 +118,9 @@ export function InvitationList(): ReactElement {
   }
 
   function renderStatus(status: string): ReactElement {
+    if (status === "attended") {
+      return <Badge className="bg-sky-100 text-sky-800">{t("attended")}</Badge>;
+    }
     const isAccepted: boolean = status === "accepted";
     const isPending: boolean = status === "pending";
     const isDeclined: boolean = status === "declined";

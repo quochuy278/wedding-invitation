@@ -3,6 +3,7 @@ import "dotenv/config";
 import { readFile, unlink, writeFile } from "node:fs/promises";
 import { prisma } from "@/server/db/prisma";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
+import { invitationTicketService } from "@/server/features/invitations/invitation-ticket.service";
 import { generateId } from "@/shared/utils/id";
 
 const path = ".next/guest-response-preview.json";
@@ -83,6 +84,11 @@ try {
         data: { expires_at: new Date(Date.now() - 1000) },
       });
       console.log("Isolated invitation expired for testing.");
+    } else if (process.argv[2] === "check-in") {
+      const ticket = await invitationTicketService.getByCode(fixture.code);
+      if (!ticket) throw new Error("Fixture ticket is unavailable.");
+      const result = await invitationTicketService.verifyForAdmin(ticket.qrValue);
+      console.log(JSON.stringify(result));
     } else if (process.argv[2] === "inspect") {
       const invitation = await prisma.invitation.findUniqueOrThrow({
         where: { id: fixture.invitationId },
@@ -99,7 +105,7 @@ try {
       await unlink(path);
       console.log("Isolated guest response fixture removed.");
     } else {
-      throw new Error("Use create, inspect, expire or cleanup.");
+      throw new Error("Use create, inspect, check-in, expire or cleanup.");
     }
   }
 } finally {

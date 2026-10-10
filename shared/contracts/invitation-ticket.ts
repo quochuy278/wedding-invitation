@@ -12,5 +12,9 @@ export type VerifiedInvitationTicketDto = {
 };
 
 export type InvitationTicketVerificationDto =
-  | { isValid: true; invitation: VerifiedInvitationTicketDto }
+  | {
+      isValid: true;
+      checkIn: "recorded" | "alreadyAttended" | "notConfirmed";
+      invitation: VerifiedInvitationTicketDto;
+    }
   | { isValid: false; invitation: null };

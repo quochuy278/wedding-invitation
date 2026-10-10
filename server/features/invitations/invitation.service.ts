@@ -15,7 +15,7 @@ import { BrevoEmailError, brevoService } from "./brevo.service";
 import { InvitationCreationError } from "./invitation.errors";
 import { invitationRepository, type PublicInvitationRecord } from "./invitation.repository";
 
-function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
+export function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
   return {
     id: invitation.id,
     code: invitation.code,

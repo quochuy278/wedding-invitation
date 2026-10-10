@@ -7,10 +7,7 @@ export type ScannerErrorCode =
   | "denied"
   | "missing"
   | "busy"
-  | "cameraFailed"
-  | "invalidImage"
-  | "imageTooLarge"
-  | "noQr";
+  | "cameraFailed";
 
 export class ScannerError extends Error {
   constructor(public readonly code: ScannerErrorCode) {
@@ -99,25 +96,4 @@ export function createBrowserQrCamera(video: HTMLVideoElement): QrCamera {
   }
 
   return createQrCamera({ acquire, attach, detach, capture, schedule, cancel });
-}
-
-export async function readQrImage(file: File): Promise<string> {
-  const supportedType = ["image/png", "image/jpeg", "image/webp"].includes(file.type);
-  if (!supportedType) throw new ScannerError("invalidImage");
-  if (file.size > 10 * 1024 * 1024) throw new ScannerError("imageTooLarge");
-  let bitmap: ImageBitmap;
-  try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    throw new ScannerError("invalidImage");
-  }
-  try {
-    if (bitmap.width * bitmap.height > 25000000) throw new ScannerError("imageTooLarge");
-    const canvas = document.createElement("canvas");
-    const value = captureQr(bitmap, bitmap.width, bitmap.height, canvas, 2048);
-    if (value === null) throw new ScannerError("noQr");
-    return value;
-  } finally {
-    bitmap.close();
-  }
 }

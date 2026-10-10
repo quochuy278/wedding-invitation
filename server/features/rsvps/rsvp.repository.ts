@@ -3,6 +3,8 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { activeInvitationWhere } from "@/server/features/invitations/invitation.repository";
+import { confirmedInvitationStatuses } from "@/shared/utils/invitation-status";
+import { RsvpAlreadyAttendedError } from "./rsvp.errors";
 import type { CreateRsvpInput } from "./rsvp.types";
 
 const rsvpSelect = {
@@ -20,7 +22,7 @@ export const rsvpRepository = {
   findMany(): Promise<RsvpRecord[]> {
     return prisma.invitation.findMany({
       where: {
-        status: { in: ["accepted", "declined"] },
+        status: { in: [...confirmedInvitationStatuses, "declined"] },
         deleted_at: null,
         user: { deleted_at: null },
       },
@@ -33,13 +35,20 @@ export const rsvpRepository = {
     return prisma.$transaction(async (transaction) => {
       // Eligibility is checked in the write, rather than in a separate lookup.
       const result = await transaction.invitation.updateMany({
-        where: activeInvitationWhere(input.code),
+        where: { ...activeInvitationWhere(input.code), status: { not: "attended" } },
         data: {
           status: input.attendance === "yes" ? "accepted" : "declined",
           guest_count: input.guestCount,
         },
       });
-      if (result.count === 0) return null;
+      if (result.count === 0) {
+        const attended = await transaction.invitation.findFirst({
+          where: { ...activeInvitationWhere(input.code), status: "attended" },
+          select: { id: true },
+        });
+        if (attended) throw new RsvpAlreadyAttendedError();
+        return null;
+      }
       return transaction.invitation.findUniqueOrThrow({
         where: { code: input.code },
         select: rsvpSelect,

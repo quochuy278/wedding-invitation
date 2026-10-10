@@ -36,7 +36,7 @@ before(async () => {
   const venue = await prisma.address.create({
     data: {
       name: "Ticket test venue",
-      address_text: "12 Đường Mẫu, TP. Hồ Chí Minh",
+      address_text: "12 Đường Mẫu, 00123 TP. Hồ Chí Minh, Việt Nam",
       address_line_1: "12 Đường Mẫu",
       address_line_2: "Sảnh Hoa Sen",
       postal_code: "00123",

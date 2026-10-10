@@ -1,6 +1,4 @@
-import { Ticket } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import ribbonBowImage from "@/public/assets/images/ornament-ribbon-bow.png";
 import { HeartDivider, InvitationHeartIcon } from "./heart-divider";
@@ -55,17 +53,8 @@ export function InvitationHero({
           guestName={invitation.guestName}
           status={invitation.status}
           guestCount={invitation.guestCount}
+          ticketHref={ticketHref}
         />
-        <div className="mt-3">
-          <Link
-            href={ticketHref}
-            prefetch={false}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-wedding-wine/20 px-5 font-label text-xs text-wedding-wine transition-colors hover:bg-wedding-wine/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wedding-dusty-rose"
-          >
-            <Ticket className="size-4" aria-hidden="true" />
-            {t("viewTicket")}
-          </Link>
-        </div>
         <p className="mt-3 text-[14px] leading-[1.5] sm:text-[15px]">
           {t("welcomeLineOne")}
           <br />

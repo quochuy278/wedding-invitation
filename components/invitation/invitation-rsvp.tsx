@@ -1,5 +1,7 @@
 "use client";
 
+import { Ticket } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useCreateRsvp } from "@/hooks/queries/use-rsvps";
 import { ApiErrorCode } from "@/lib/api/types";
 import { type Attendance, guestResponseLimits } from "@/shared/contracts/guest-response";
+import { isConfirmedInvitationStatus } from "@/shared/utils/invitation-status";
 import { InvitationButton } from "./invitation-button";
 
 type RsvpState = { status: string; guestCount: number };
@@ -24,8 +27,10 @@ export function InvitationRsvp({
   guestName,
   status,
   guestCount,
-}: RsvpState & { code: string; guestName: string }) {
+  ticketHref,
+}: RsvpState & { code: string; guestName: string; ticketHref: string }) {
   const t = useTranslations("Invitation.rsvp");
+  const hero = useTranslations("Invitation.hero");
   const errors = useTranslations("ApiErrors");
   const id = useId();
   const mutation = useCreateRsvp();
@@ -34,14 +39,36 @@ export function InvitationRsvp({
   const [attendance, setAttendance] = useState<Attendance>(status === "declined" ? "no" : "yes");
   const [guestCountInput, setGuestCountInput] = useState(String(Math.max(1, guestCount)));
   const busy = mutation.isPending;
-  const hasResponded = response.status === "accepted" || response.status === "declined";
+  const confirmed = isConfirmedInvitationStatus(response.status);
+  const hasResponded = confirmed || response.status === "declined";
   const errorMessage = mutation.error
     ? mutation.error.code === ApiErrorCode.NotFound
       ? t("unavailable")
-      : mutation.error.code === ApiErrorCode.BadRequest
-        ? t("invalidCount")
-        : errors(mutation.error.code)
+      : mutation.error.code === ApiErrorCode.Conflict
+        ? t("alreadyAttended")
+        : mutation.error.code === ApiErrorCode.BadRequest
+          ? t("invalidCount")
+          : errors(mutation.error.code)
     : null;
+
+  if (confirmed) {
+    return (
+      <div id="rsvp" className="scroll-mt-8">
+        <InvitationButton
+          render={<Link href={ticketHref} prefetch={false} />}
+          nativeButton={false}
+          leadingIcon={<Ticket className="size-4" aria-hidden="true" />}
+        >
+          {t("viewInvitation")}
+        </InvitationButton>
+        <p role="status" className="mx-auto mt-3 max-w-sm text-sm text-wedding-wine">
+          {response.status === "attended"
+            ? t("attended")
+            : t("accepted", { count: response.guestCount })}
+        </p>
+      </div>
+    );
+  }
 
   function handleOpenChange(nextOpen: boolean): void {
     if (busy) return;
@@ -152,11 +179,19 @@ export function InvitationRsvp({
           </form>
         </DialogContent>
       </Dialog>
+      <div className="mt-3">
+        <Link
+          href={ticketHref}
+          prefetch={false}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-wedding-wine/20 px-5 font-label text-xs text-wedding-wine transition-colors hover:bg-wedding-wine/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wedding-dusty-rose"
+        >
+          <Ticket className="size-4" aria-hidden="true" />
+          {hero("viewTicket")}
+        </Link>
+      </div>
       {hasResponded ? (
         <p role="status" className="mx-auto mt-3 max-w-sm text-sm text-wedding-wine">
-          {response.status === "accepted"
-            ? t("accepted", { count: response.guestCount })
-            : t("declined")}
+          {t("declined")}
         </p>
       ) : null}
     </div>

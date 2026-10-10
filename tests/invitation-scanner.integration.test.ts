@@ -7,9 +7,12 @@ import { prisma } from "@/server/db/prisma";
 import { hashPassword } from "@/server/features/auth/password";
 import { issueTokens } from "@/server/features/auth/token";
 import { brevoService } from "@/server/features/invitations/brevo.service";
+import { invitationRepository } from "@/server/features/invitations/invitation.repository";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { issueInvitationTicketToken } from "@/server/features/invitations/invitation-ticket.token";
+import { rsvpService } from "@/server/features/rsvps/rsvp.service";
 import { UserLevel } from "@/shared/contracts/auth";
+import { guestApiHeaders } from "@/shared/contracts/guest-api";
 import type { CreatedInvitationDto } from "@/shared/contracts/invitation";
 import type { InvitationTicketVerificationDto } from "@/shared/contracts/invitation-ticket";
 import { generateId } from "@/shared/utils/id";
@@ -52,7 +55,15 @@ before(async () => {
     },
   });
   addressId = address.id;
-  for (const label of ["active", "expired", "deleted", "guest-deleted"]) {
+  for (const label of [
+    "active",
+    "expired",
+    "deleted",
+    "guest-deleted",
+    "pending",
+    "declined",
+    "deadline-changed",
+  ]) {
     const invitation = await invitationService.create({
       guestName: `Scanner guest ${label}`,
       email: `scanner-${label}-${runId}@example.invalid`,
@@ -65,6 +76,8 @@ before(async () => {
     const guest = await prisma.user.findUniqueOrThrow({ where: { email: invitation.email } });
     userIds.push(guest.id);
   }
+  await rsvpService.create({ code: invitations[0].code, attendance: "yes", guestCount: 3 });
+  await rsvpService.create({ code: invitations[5].code, attendance: "no", guestCount: 0 });
   const signedIn = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { Origin: origin, "Content-Type": "application/json" },
@@ -155,7 +168,7 @@ test(
 );
 
 test(
-  "real QR returns database guest and venue without writing attendance or exposing email",
+  "confirmed QR checks in once under simultaneous scans and preserves guest counts",
   httpOptions,
   async () => {
     const invitation = invitations[0];
@@ -163,14 +176,18 @@ test(
     const beforeRecord = await prisma.invitation.findUniqueOrThrow({
       where: { id: invitation.id },
     });
-    for (let repeat = 0; repeat < 2; repeat += 1) {
-      const response = await verify(token);
+    const baseline = await invitationService.list({ page: 1, pageSize: 100 });
+    const results: string[] = [];
+    for (const response of await Promise.all([verify(token), verify(token), verify(token)])) {
       assert.equal(response.status, 200);
       assert.equal(response.headers.get("cache-control"), "no-store");
       assert.equal(response.headers.get("referrer-policy"), "no-referrer");
       assert.ok(response.headers.get("vary")?.split(/,\s*/).includes("Cookie"));
       const body: { data: InvitationTicketVerificationDto } = await response.json();
       assert.ok(body.data.isValid);
+      results.push(body.data.checkIn);
+      assert.equal(body.data.invitation.status, "attended");
+      assert.equal(body.data.invitation.guestCount, 3);
       assert.equal(body.data.invitation.code, invitation.code);
       assert.equal(body.data.invitation.guestName, invitation.guestName);
       assert.equal(body.data.invitation.address.floor, "3A");
@@ -182,15 +199,97 @@ test(
       );
       assert.ok(!JSON.stringify(body).includes(invitation.email));
     }
+    assert.deepEqual(results.sort(), ["alreadyAttended", "alreadyAttended", "recorded"]);
+    const checkedIn = await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } });
+    assert.equal(checkedIn.status, "attended");
+    assert.equal(checkedIn.guest_count, beforeRecord.guest_count);
+    assert.ok(checkedIn.updated_at >= beforeRecord.updated_at);
+    const repeat: { data: InvitationTicketVerificationDto } = await (await verify(token)).json();
+    assert.ok(repeat.data.isValid);
+    assert.equal(repeat.data.checkIn, "alreadyAttended");
     assert.deepEqual(
       await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } }),
-      beforeRecord,
+      checkedIn,
     );
+    assert.deepEqual(
+      (await invitationService.list({ page: 1, pageSize: 100 })).summary,
+      baseline.summary,
+    );
+    assert.equal(
+      (await rsvpService.list()).find((rsvp) => rsvp.code === invitation.code)?.attendance,
+      "yes",
+    );
+    for (const attendance of ["yes", "no"] as const) {
+      const rsvp = await fetch(`${baseUrl}/api/rsvps`, {
+        method: "POST",
+        headers: { ...guestApiHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: invitation.code,
+          attendance,
+          guestCount: attendance === "yes" ? 9 : 0,
+        }),
+      });
+      assert.equal(rsvp.status, 409);
+    }
+    assert.deepEqual(
+      await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } }),
+      checkedIn,
+    );
+    const publicInvitation = await invitationService.getByCode(invitation.code);
+    assert.equal(publicInvitation?.status, "attended");
     const page = await fetch(`${baseUrl}/dashboard/scan`, { headers });
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.ok(html.includes("Bật camera"));
-    assert.ok(html.includes("Chọn ảnh QR"));
+    assert.ok(!html.includes('type="file"'));
+    assert.ok(!html.includes("Chọn ảnh QR"));
+  },
+);
+
+test("pending and declined tickets are authentic but cannot check in", httpOptions, async () => {
+  for (const invitation of invitations.slice(4, 6)) {
+    const beforeRecord = await prisma.invitation.findUniqueOrThrow({
+      where: { id: invitation.id },
+    });
+    const response = await verify(issueInvitationTicketToken(invitation));
+    assert.equal(response.status, 200);
+    const body: { data: InvitationTicketVerificationDto } = await response.json();
+    assert.ok(body.data.isValid);
+    assert.equal(body.data.checkIn, "notConfirmed");
+    assert.equal(body.data.invitation.status, beforeRecord.status);
+    assert.deepEqual(
+      await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } }),
+      beforeRecord,
+    );
+  }
+});
+
+test(
+  "check-in rechecks signed identity and expiry in the conditional write",
+  httpOptions,
+  async () => {
+    const invitation = invitations[6];
+    await rsvpService.create({ code: invitation.code, attendance: "yes", guestCount: 2 });
+    await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { expires_at: new Date(Date.parse(invitation.expiresAt) + 1000) },
+    });
+    const beforeRecord = await prisma.invitation.findUniqueOrThrow({
+      where: { id: invitation.id },
+    });
+    assert.equal(await invitationRepository.checkIn(invitation), null);
+    assert.equal(
+      await invitationRepository.checkIn({
+        ...invitation,
+        id: invitations[0].id,
+        expiresAt: beforeRecord.expires_at.toISOString(),
+      }),
+      null,
+    );
+    assert.deepEqual(
+      await prisma.invitation.findUniqueOrThrow({ where: { id: invitation.id } }),
+      beforeRecord,
+    );
   },
 );
 
@@ -214,12 +313,25 @@ test(
       where: { email: invitations[3].email },
       data: { deleted_at: new Date() },
     });
-    invalidTokens.push(...invitations.slice(1).map(issueInvitationTicketToken));
+    invalidTokens.push(
+      ...[...invitations.slice(1, 4), invitations[6]].map(issueInvitationTicketToken),
+    );
+    const beforeRecords = await prisma.invitation.findMany({
+      where: { id: { in: invitations.map((invitation) => invitation.id) } },
+      orderBy: { id: "asc" },
+    });
     for (const value of invalidTokens) {
       const response = await verify(value);
       assert.equal(response.status, 200);
       assert.deepEqual(await response.json(), { data: { isValid: false, invitation: null } });
     }
+    assert.deepEqual(
+      await prisma.invitation.findMany({
+        where: { id: { in: invitations.map((invitation) => invitation.id) } },
+        orderBy: { id: "asc" },
+      }),
+      beforeRecords,
+    );
   },
 );
 

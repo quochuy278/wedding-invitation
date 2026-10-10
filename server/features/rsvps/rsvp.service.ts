@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isConfirmedInvitationStatus } from "@/shared/utils/invitation-status";
 import { type RsvpRecord, rsvpRepository } from "./rsvp.repository";
 import type { CreateRsvpInput, Rsvp } from "./rsvp.types";
 
@@ -8,7 +9,7 @@ function toRsvp(record: RsvpRecord): Rsvp {
     id: record.id,
     code: record.code,
     guestName: record.user.full_name,
-    attendance: record.status === "accepted" ? "yes" : "no",
+    attendance: isConfirmedInvitationStatus(record.status) ? "yes" : "no",
     guestCount: record.guest_count,
     updatedAt: record.updated_at.toISOString(),
   };
