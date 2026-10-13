@@ -2,16 +2,14 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import venueGardenImage from "@/public/assets/images/illustration-venue-garden.png";
 import type { AddressDto } from "@/shared/contracts/address";
-import { addressDisplayLines } from "@/shared/utils/address";
+import { addressDisplayLines, addressMapUrl } from "@/shared/utils/address";
 import { HeartDivider } from "./heart-divider";
 import { InvitationButton } from "./invitation-button";
 import { LocationPinIcon } from "./invitation-icons";
 
 export function InvitationVenue({ venue }: { venue: AddressDto }) {
   const t = useTranslations("Invitation.venue");
-  const hasCoordinates = venue.latitude !== null && venue.longitude !== null;
-  const mapQuery = hasCoordinates ? `${venue.latitude},${venue.longitude}` : venue.addressText;
-  const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const mapUrl = addressMapUrl(venue);
   const addressLines = addressDisplayLines(venue);
   const floor = venue.floor ? t("floor", { value: venue.floor }) : null;
   const entrance = venue.entrance ? t("entrance", { value: venue.entrance }) : null;
@@ -56,12 +54,14 @@ export function InvitationVenue({ venue }: { venue: AddressDto }) {
         </address>
         <InvitationButton
           nativeButton={false}
-          render={<a href={mapUrl} target="_blank" rel="noopener noreferrer" />}
+          disabled={mapUrl === null}
+          render={<a href={mapUrl ?? undefined} target="_blank" rel="noopener noreferrer" />}
           leadingIcon={<LocationPinIcon className="[&_img]:brightness-0 [&_img]:invert" />}
           className="min-w-[230px] gap-4"
         >
           {t("viewMap")}
         </InvitationButton>
+        {mapUrl === null && <p className="mt-2 text-sm text-[#66504a]">{t("mapUnavailable")}</p>}
       </div>
     </section>
   );

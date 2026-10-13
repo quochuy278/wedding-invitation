@@ -9,6 +9,7 @@ import {
 import { parseCreateAddressInput } from "@/server/features/addresses/address.schema";
 import { parseCreateInvitationInput } from "@/server/features/invitations/invitation.schema";
 import type { CreateAddressInput } from "@/shared/contracts/address";
+import { addressMapUrl } from "@/shared/utils/address";
 
 const address: CreateAddressInput = {
   name: "Nhà hàng Sen",
@@ -28,6 +29,35 @@ const address: CreateAddressInput = {
   eventAt: "2027-06-12T18:00:00+07:00",
   eventTimeZone: "Asia/Ho_Chi_Minh",
 };
+
+test("guest map links reuse the fetched venue coordinates with full precision", () => {
+  for (const [latitude, longitude] of [
+    [51.5201601, -0.1603064],
+    [-33.8567844, 151.2152967],
+    [0, 0],
+  ]) {
+    const mapUrl = addressMapUrl({ ...address, latitude, longitude });
+    assert.ok(mapUrl);
+    const url = new URL(mapUrl);
+    assert.equal(url.origin + url.pathname, "https://www.google.com/maps/search/");
+    assert.equal(url.searchParams.get("api"), "1");
+    assert.equal(url.searchParams.get("query"), `${latitude},${longitude}`);
+  }
+});
+
+test("guest map links cannot guess a destination when venue coordinates are missing or invalid", () => {
+  for (const coordinates of [
+    { latitude: null, longitude: null },
+    { latitude: 51.52, longitude: null },
+    { latitude: null, longitude: -0.16 },
+    { latitude: NaN, longitude: -0.16 },
+    { latitude: 51.52, longitude: Infinity },
+    { latitude: 91, longitude: 0 },
+    { latitude: 0, longitude: -181 },
+  ]) {
+    assert.equal(addressMapUrl({ ...address, ...coordinates }), null);
+  }
+});
 
 test("Vietnamese date entry uses day/month order, validates real dates and preserves 24-hour time", () => {
   assert.equal(localDateTimeValue("12/06/2027", "18", "30"), "2027-06-12T18:30");

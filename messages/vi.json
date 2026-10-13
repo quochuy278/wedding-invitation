@@ -352,6 +352,7 @@
       "heading": "Địa điểm tổ chức",
       "imageAlt": "Minh họa tiệc cưới trong khu vườn với hoa và dây đèn",
       "viewMap": "Xem bản đồ",
+      "mapUnavailable": "Vị trí bản đồ chưa được cập nhật.",
       "floor": "Tầng: {value}",
       "entrance": "Lối vào: {value}"
     },
