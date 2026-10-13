@@ -51,6 +51,8 @@ Axios services and React Query hooks load venues and create records. Successful 
 
 The form shows server field errors, loading states, an empty venue state, and a retry button for venue loading. Successful invitation creation displays its real code and offers preview/copy-link actions. `/invitation/[code]` loads the persisted guest, venue, event time, and personal message; invalid, expired, or deleted invitations show the existing not-found page.
 
+Valid invitation pages offer “Thêm vào lịch” beside the venue map button. The Google Calendar template uses the selected venue's saved event instant, IANA time zone, full address, access instructions and coordinate map link. The default duration is three hours because venues currently store only a start time; guests can adjust the event before saving it in their own calendar. The link opens in a new tab and does not invite other guests or write through a Calendar API. The home page and unavailable invitation pages do not expose this button.
+
 The home form displays six code slots and opens the invitation by its code. Typing and pasting lowercase ASCII letters automatically uppercases them; symbols, non-ASCII characters and overlong pastes are rejected. The validation API requires the same six-character format and normalizes lowercase ASCII and surrounding whitespace before lookup.
 
 This version stores the guest email and invitation only. It does not send email, create an email queue, or mark anything as sent. The UI states this explicitly. Prototype guest-group and maximum-guest controls were removed because the existing model has no corresponding fields; `guest_count` is an attendance count, not an invitation capacity.

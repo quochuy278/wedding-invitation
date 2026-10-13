@@ -1,19 +1,34 @@
+import { CalendarPlus } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import venueGardenImage from "@/public/assets/images/illustration-venue-garden.png";
 import type { AddressDto } from "@/shared/contracts/address";
 import { addressDisplayLines, addressMapUrl } from "@/shared/utils/address";
+import { invitationCalendarUrl } from "@/shared/utils/invitation-calendar";
 import { HeartDivider } from "./heart-divider";
 import { InvitationButton } from "./invitation-button";
 import { LocationPinIcon } from "./invitation-icons";
 
 export function InvitationVenue({ venue }: { venue: AddressDto }) {
   const t = useTranslations("Invitation.venue");
+  const couple = useTranslations("Invitation.couple");
   const mapUrl = addressMapUrl(venue);
   const addressLines = addressDisplayLines(venue);
   const floor = venue.floor ? t("floor", { value: venue.floor }) : null;
   const entrance = venue.entrance ? t("entrance", { value: venue.entrance }) : null;
   const access = [floor, entrance].filter(Boolean).join(" · ");
+  const calendarDetails = [
+    t("calendarDescription"),
+    access,
+    venue.instructions,
+    mapUrl ? `${t("calendarMap")}: ${mapUrl}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  const calendarUrl = invitationCalendarUrl(venue, {
+    title: t("calendarTitle", { groom: couple("groom"), bride: couple("bride") }),
+    details: calendarDetails,
+  });
 
   return (
     <section
@@ -52,16 +67,32 @@ export function InvitationVenue({ venue }: { venue: AddressDto }) {
           {access && <p>{access}</p>}
           {venue.instructions && <p>{venue.instructions}</p>}
         </address>
-        <InvitationButton
-          nativeButton={false}
-          disabled={mapUrl === null}
-          render={<a href={mapUrl ?? undefined} target="_blank" rel="noopener noreferrer" />}
-          leadingIcon={<LocationPinIcon className="[&_img]:brightness-0 [&_img]:invert" />}
-          className="min-w-[230px] gap-4"
-        >
-          {t("viewMap")}
-        </InvitationButton>
+        <div className="flex flex-wrap justify-center gap-3">
+          <InvitationButton
+            nativeButton={false}
+            disabled={mapUrl === null}
+            render={<a href={mapUrl ?? undefined} target="_blank" rel="noopener noreferrer" />}
+            leadingIcon={<LocationPinIcon className="[&_img]:brightness-0 [&_img]:invert" />}
+            className="min-w-[230px] gap-4"
+          >
+            {t("viewMap")}
+          </InvitationButton>
+          <InvitationButton
+            nativeButton={false}
+            disabled={calendarUrl === null}
+            render={<a href={calendarUrl ?? undefined} target="_blank" rel="noopener noreferrer" />}
+            leadingIcon={
+              <CalendarPlus className="size-5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+            }
+            className="min-w-[230px] gap-4"
+          >
+            {t("addToCalendar")}
+          </InvitationButton>
+        </div>
         {mapUrl === null && <p className="mt-2 text-sm text-[#66504a]">{t("mapUnavailable")}</p>}
+        {calendarUrl === null && (
+          <p className="mt-2 text-sm text-[#66504a]">{t("calendarUnavailable")}</p>
+        )}
       </div>
     </section>
   );

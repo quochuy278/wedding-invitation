@@ -353,6 +353,11 @@
       "imageAlt": "Minh họa tiệc cưới trong khu vườn với hoa và dây đèn",
       "viewMap": "Xem bản đồ",
       "mapUnavailable": "Vị trí bản đồ chưa được cập nhật.",
+      "addToCalendar": "Thêm vào lịch",
+      "calendarTitle": "Tiệc cưới {groom} & {bride}",
+      "calendarDescription": "Hẹn gặp bạn trong ngày vui của chúng mình! Thời lượng dự kiến 3 giờ, bạn có thể chỉnh lại khi lưu vào lịch.",
+      "calendarMap": "Bản đồ địa điểm",
+      "calendarUnavailable": "Thông tin lịch chưa được cập nhật.",
       "floor": "Tầng: {value}",
       "entrance": "Lối vào: {value}"
     },
