@@ -1,17 +1,10 @@
 import type { AddressDto } from "@/shared/contracts/address";
 
-export function addressMapUrl(address: Pick<AddressDto, "latitude" | "longitude">): string | null {
-  const { latitude, longitude } = address;
-  if (
-    typeof latitude !== "number" ||
-    typeof longitude !== "number" ||
-    !Number.isFinite(latitude) ||
-    !Number.isFinite(longitude) ||
-    Math.abs(latitude) > 90 ||
-    Math.abs(longitude) > 180
-  )
-    return null;
-  const query = `${latitude},${longitude}`;
+export function addressMapUrl(address: Pick<AddressDto, "name" | "addressText">): string | null {
+  const name = address.name.trim().replace(/\s+/g, " ");
+  const fullAddress = address.addressText.trim().replace(/\s+/g, " ");
+  if (!name || !fullAddress) return null;
+  const query = `${name}, ${fullAddress}`;
   const parameters = new URLSearchParams({ api: "1", query });
   return `https://www.google.com/maps/search/?${parameters}`;
 }

@@ -30,32 +30,43 @@ const address: CreateAddressInput = {
   eventTimeZone: "Asia/Ho_Chi_Minh",
 };
 
-test("guest map links reuse the fetched venue coordinates with full precision", () => {
-  for (const [latitude, longitude] of [
-    [51.5201601, -0.1603064],
-    [-33.8567844, 151.2152967],
-    [0, 0],
-  ]) {
-    const mapUrl = addressMapUrl({ ...address, latitude, longitude });
-    assert.ok(mapUrl);
-    const url = new URL(mapUrl);
-    assert.equal(url.origin + url.pathname, "https://www.google.com/maps/search/");
-    assert.equal(url.searchParams.get("api"), "1");
-    assert.equal(url.searchParams.get("query"), `${latitude},${longitude}`);
-  }
+test("guest map links search the fetched venue name and full address instead of a coordinate pin", () => {
+  const venue = { ...address, latitude: 10.78, longitude: 106.69 };
+  const mapUrl = addressMapUrl(venue);
+  assert.ok(mapUrl);
+  const url = new URL(mapUrl);
+  assert.equal(url.origin + url.pathname, "https://www.google.com/maps/search/");
+  assert.equal(url.searchParams.get("api"), "1");
+  assert.equal(url.searchParams.get("query"), "Nhà hàng Sen, 12 Nguyễn Du TP. Hồ Chí Minh");
 });
 
-test("guest map links cannot guess a destination when venue coordinates are missing or invalid", () => {
-  for (const coordinates of [
-    { latitude: null, longitude: null },
-    { latitude: 51.52, longitude: null },
-    { latitude: null, longitude: -0.16 },
-    { latitude: NaN, longitude: -0.16 },
-    { latitude: 51.52, longitude: Infinity },
-    { latitude: 91, longitude: 0 },
-    { latitude: 0, longitude: -181 },
+test("named venue map links work without coordinates and encode Vietnamese text and query characters", () => {
+  const mapUrl = addressMapUrl({
+    ...address,
+    name: "  Nhà hàng Sen & Hoa #1  ",
+    addressText: "  5 Nguyễn Du\n  Hà Nội, Việt Nam  ",
+  });
+  assert.ok(mapUrl);
+  const url = new URL(mapUrl);
+  assert.deepEqual(
+    [...url.searchParams],
+    [
+      ["api", "1"],
+      ["query", "Nhà hàng Sen & Hoa #1, 5 Nguyễn Du Hà Nội, Việt Nam"],
+    ],
+  );
+  assert.equal(url.hash, "");
+});
+
+test("guest map links require both the venue name and full address", () => {
+  for (const incomplete of [
+    { name: "" },
+    { name: "  " },
+    { addressText: "" },
+    { addressText: "\n " },
   ]) {
-    assert.equal(addressMapUrl({ ...address, ...coordinates }), null);
+    const venue = { ...address, latitude: 10.78, longitude: 106.69, ...incomplete };
+    assert.equal(addressMapUrl(venue), null);
   }
 });
 
