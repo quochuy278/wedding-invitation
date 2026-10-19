@@ -1,5 +1,5 @@
 import jsQR from "jsqr";
-import { createQrCamera, type QrCamera } from "./camera";
+import { createQrCamera, type QrCamera, QrCameraTimeoutError } from "./camera";
 
 export type ScannerErrorCode =
   | "insecure"
@@ -7,6 +7,7 @@ export type ScannerErrorCode =
   | "denied"
   | "missing"
   | "busy"
+  | "timeout"
   | "cameraFailed";
 
 export class ScannerError extends Error {
@@ -17,6 +18,7 @@ export class ScannerError extends Error {
 }
 
 export function scannerErrorCode(error: unknown): ScannerErrorCode {
+  if (error instanceof QrCameraTimeoutError) return "timeout";
   if (error instanceof ScannerError) return error.code;
   if (error instanceof Error) {
     if (error.name === "NotAllowedError" || error.name === "SecurityError") return "denied";
@@ -87,8 +89,8 @@ export function createBrowserQrCamera(video: HTMLVideoElement): QrCamera {
     return track.readyState === "ended";
   }
 
-  function schedule(callback: () => void): number {
-    return window.setTimeout(callback, 160);
+  function schedule(callback: () => void, delayMs = 160): number {
+    return window.setTimeout(callback, delayMs);
   }
 
   function cancel(timer: number): void {

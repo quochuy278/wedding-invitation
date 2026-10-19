@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { PNG } from "pngjs";
 import { decodeQrPixels, ScannerError, scannerErrorCode } from "@/lib/qr/browser-scanner";
-import { createQrCamera } from "@/lib/qr/camera";
+import { createQrCamera, QrCameraTimeoutError } from "@/lib/qr/camera";
 import { renderInvitationTicketQr } from "@/server/features/invitations/invitation-ticket.qr";
 import { parseVerifyInvitationTicketInput } from "@/server/features/invitations/invitation-ticket.schema";
 
@@ -26,7 +26,8 @@ function cameraFixture() {
   let detached = 0;
   let acquired = 0;
   const frames: (string | null | Error)[] = [];
-  const tasks = new Map<number, () => void>();
+  const tasks = new Map<number, { at: number; callback: () => void }>();
+  let currentTime = 0;
   let nextTimer = 0;
   const stream = {
     getTracks: () => [
@@ -53,9 +54,9 @@ function cameraFixture() {
       if (frame instanceof Error) throw frame;
       return frame;
     },
-    schedule(callback: () => void) {
+    schedule(callback: () => void, delayMs = 160) {
       nextTimer += 1;
-      tasks.set(nextTimer, callback);
+      tasks.set(nextTimer, { at: currentTime + delayMs, callback });
       return nextTimer;
     },
     cancel(timer: number) {
@@ -63,10 +64,16 @@ function cameraFixture() {
     },
   };
   function tick() {
-    const entry = tasks.entries().next().value;
+    const entry = [...tasks.entries()].sort((a, b) => a[1].at - b[1].at)[0];
     assert.ok(entry);
     tasks.delete(entry[0]);
-    entry[1]();
+    currentTime = entry[1].at;
+    entry[1].callback();
+  }
+  function elapse(milliseconds: number) {
+    const until = currentTime + milliseconds;
+    while ([...tasks.values()].some((task) => task.at <= until)) tick();
+    currentTime = until;
   }
   return {
     stream,
@@ -74,6 +81,7 @@ function cameraFixture() {
     frames,
     tasks,
     tick,
+    elapse,
     stats: () => ({ stopped, attached, detached, acquired }),
   };
 }
@@ -121,7 +129,11 @@ test("camera access starts explicitly, emits one QR and releases all resources",
   assert.equal(fixture.stats().acquired, 0);
   assert.equal(
     await camera.start(
-      (value) => decoded.push(value),
+      (value) => {
+        assert.equal(fixture.stats().stopped, 1, "stop the camera before reporting the QR");
+        assert.equal(fixture.stats().detached, 1, "detach the video before reporting the QR");
+        decoded.push(value);
+      },
       (error) => errors.push(error),
     ),
     true,
@@ -134,7 +146,107 @@ test("camera access starts explicitly, emits one QR and releases all resources",
   assert.equal(fixture.tasks.size, 0);
   assert.deepEqual(fixture.stats(), { acquired: 1, attached: 1, detached: 1, stopped: 1 });
   camera.stop();
+  fixture.elapse(120_000);
   assert.equal(fixture.stats().stopped, 1);
+  assert.deepEqual(errors, []);
+});
+
+test("a camera left waiting for QR turns off after one minute", async () => {
+  const fixture = cameraFixture();
+  const camera = createQrCamera(fixture.dependencies);
+  const errors: unknown[] = [];
+  await camera.start(assert.fail, (error) => errors.push(error));
+  fixture.elapse(59_999);
+  assert.equal(fixture.stats().stopped, 0);
+  fixture.elapse(1);
+  assert.equal(fixture.stats().stopped, 1, "an unattended camera must release its stream");
+  assert.equal(fixture.stats().detached, 1);
+  assert.equal(fixture.tasks.size, 0);
+  assert.equal(errors.length, 1);
+  assert.ok(errors[0] instanceof Error);
+  assert.equal(errors[0].name, "QrCameraTimeoutError");
+  assert.equal(scannerErrorCode(errors[0]), "timeout");
+});
+
+test("every camera track is stopped before a decoded QR reaches verification", async () => {
+  const fixture = cameraFixture();
+  const released: string[] = [];
+  fixture.dependencies.acquire = async () => ({
+    getTracks: () => [
+      { stop: () => released.push("first-track") },
+      { stop: () => released.push("second-track") },
+    ],
+  });
+  fixture.frames.push("signed-ticket");
+  const camera = createQrCamera(fixture.dependencies);
+  let decoded = 0;
+  await camera.start(() => {
+    assert.deepEqual(released, ["first-track", "second-track"]);
+    assert.equal(fixture.stats().detached, 1);
+    decoded += 1;
+  }, unexpectedError);
+  fixture.tick();
+  fixture.elapse(120_000);
+  assert.equal(decoded, 1);
+  assert.equal(fixture.tasks.size, 0);
+});
+
+test("a timed-out permission request releases a late stream without reopening the camera", async () => {
+  const fixture = cameraFixture();
+  const permission = deferred<typeof fixture.stream>();
+  fixture.dependencies.acquire = () => permission.promise;
+  const camera = createQrCamera(fixture.dependencies);
+  const errors: unknown[] = [];
+  const start = camera.start(assert.fail, (error) => errors.push(error));
+  fixture.elapse(60_000);
+  assert.equal(errors.length, 1);
+  assert.ok(errors[0] instanceof QrCameraTimeoutError);
+  permission.resolve(fixture.stream);
+  assert.equal(await start, false);
+  assert.equal(fixture.stats().stopped, 1);
+  assert.equal(fixture.stats().attached, 0);
+  assert.equal(fixture.tasks.size, 0);
+});
+
+test("the camera timeout closes a stream even while video playback startup is pending", async () => {
+  const fixture = cameraFixture();
+  const playback = deferred<void>();
+  fixture.dependencies.attach = () => playback.promise;
+  const camera = createQrCamera(fixture.dependencies);
+  const errors: unknown[] = [];
+  const start = camera.start(assert.fail, (error) => errors.push(error));
+  await Promise.resolve();
+  fixture.elapse(60_000);
+  assert.equal(fixture.stats().stopped, 1);
+  assert.equal(fixture.stats().detached, 1);
+  assert.ok(errors[0] instanceof QrCameraTimeoutError);
+  playback.resolve();
+  assert.equal(await start, false);
+  assert.equal(fixture.tasks.size, 0);
+});
+
+test("an old session timeout cannot stop the camera after the next scan starts", async () => {
+  const fixture = cameraFixture();
+  const camera = createQrCamera(fixture.dependencies);
+  const errors: unknown[] = [];
+  await camera.start(
+    () => {},
+    (error) => errors.push(error),
+  );
+  const oldTimeout = [...fixture.tasks.values()].find((task) => task.at === 60_000);
+  assert.ok(oldTimeout);
+  fixture.frames.push("first-ticket");
+  fixture.tick();
+  fixture.elapse(30_000);
+  await camera.start(assert.fail, (error) => errors.push(error));
+  oldTimeout.callback();
+  fixture.elapse(40_000);
+  assert.equal(fixture.stats().stopped, 1);
+  assert.deepEqual(errors, []);
+  fixture.elapse(20_000);
+  assert.equal(fixture.stats().stopped, 2);
+  assert.equal(errors.length, 1);
+  assert.equal(fixture.tasks.size, 0);
 });
 
 test("cancelled permission requests release late streams without attaching or scanning", async () => {
@@ -177,9 +289,9 @@ test("stale permission failures and stale frame callbacks cannot affect a restar
   permission.reject(new Error("old permission denied"));
   assert.equal(await first, false);
   assert.deepEqual(errors, []);
-  const staleFrame = [...fixture.tasks.values()][0];
+  const staleFrame = [...fixture.tasks.values()].sort((a, b) => a.at - b.at)[0];
   camera.stop();
-  staleFrame();
+  staleFrame.callback();
   assert.equal(fixture.tasks.size, 0);
   assert.equal(fixture.stats().stopped, 1);
 });

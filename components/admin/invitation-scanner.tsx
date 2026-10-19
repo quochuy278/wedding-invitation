@@ -3,7 +3,6 @@
 import {
   CameraIcon,
   CheckCircle2Icon,
-  Loader2Icon,
   ScanLineIcon,
   ShieldCheckIcon,
   XCircleIcon,
@@ -11,6 +10,10 @@ import {
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactElement } from "react";
+import {
+  ScannerCameraResult,
+  ScannerCameraStatus,
+} from "@/components/admin/scanner-camera-feedback";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -119,7 +122,7 @@ function ScanResult({ result }: { result: InvitationTicketVerificationDto }): Re
       : ShieldCheckIcon;
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-3" role="status">
+      <div className="flex items-start gap-3">
         <ResultIcon className={iconClassName} />
         <div>
           <h2 className={titleClassName}>{title}</h2>
@@ -142,9 +145,16 @@ export function InvitationScanner(): ReactElement {
   const busyLabel = busy ? t(state.phase) : "";
   const cameraClassName = cameraActive ? "h-full w-full object-cover" : "hidden";
   const cameraError = state.phase === "scannerError";
-  const cameraButtonLabel = cameraError ? t("retryCamera") : t("startCamera");
+  const cameraButtonLabel =
+    state.phase === "result" ? t("scanNext") : cameraError ? t("retryCamera") : t("startCamera");
+  const resultKey =
+    state.phase === "result" && (state.result.isValid ? state.result.checkIn : "invalid");
   const cameraDisabled = !scanner.canUseCamera;
-  const cameraOffLabel = cameraDisabled ? t("desktopCameraOff") : t("cameraOff");
+  const cameraOffLabel = cameraDisabled
+    ? t("desktopCameraOff")
+    : state.phase === "scannerError" && state.code === "timeout"
+      ? t("errors.timeout")
+      : t("cameraOff");
   const permissionHint = cameraDisabled ? t("desktopCameraHint") : t("permissionHint");
 
   function handleStartCamera(): void {
@@ -175,7 +185,7 @@ export function InvitationScanner(): ReactElement {
                 playsInline
                 ref={scanner.videoRef}
               />
-              {!cameraActive && (
+              {!busy && state.phase !== "result" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center text-zinc-300">
                   <ScanLineIcon className="size-14 stroke-1" />
                   <p className="text-sm">{cameraOffLabel}</p>
@@ -184,14 +194,13 @@ export function InvitationScanner(): ReactElement {
               {cameraActive && (
                 <div className="pointer-events-none absolute inset-10 rounded-2xl border-2 border-white/70" />
               )}
-              {busy && (
-                <div
-                  className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-2 rounded-lg bg-black/70 px-3 py-2 text-sm text-white"
-                  role="status"
-                >
-                  <Loader2Icon className="size-4 animate-spin" />
-                  {busyLabel}
-                </div>
+              {(state.phase === "requesting" ||
+                state.phase === "scanning" ||
+                state.phase === "verifying") && (
+                <ScannerCameraStatus label={busyLabel} phase={state.phase} />
+              )}
+              {state.phase === "result" && resultKey && (
+                <ScannerCameraResult result={state.result} title={t(`${resultKey}Title`)} />
               )}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -244,7 +253,12 @@ export function InvitationScanner(): ReactElement {
               </div>
             )}
             {state.phase === "result" && (
-              <Button onClick={scanner.reset} type="button" variant="outline">
+              <Button
+                disabled={cameraDisabled}
+                onClick={handleStartCamera}
+                type="button"
+                variant="outline"
+              >
                 <ScanLineIcon />
                 {t("scanNext")}
               </Button>

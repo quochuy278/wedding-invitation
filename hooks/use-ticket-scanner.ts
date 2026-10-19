@@ -55,12 +55,21 @@ export function useTicketScanner() {
     },
   });
 
-  const stopWork = useCallback(function stopWork(): void {
-    generationRef.current += 1;
-    cameraRef.current?.stop();
-    requestRef.current?.abort();
-    requestRef.current = null;
+  const stopCamera = useCallback(function stopCamera(): void {
+    const camera = cameraRef.current;
+    cameraRef.current = null;
+    camera?.stop();
   }, []);
+
+  const stopWork = useCallback(
+    function stopWork(): void {
+      generationRef.current += 1;
+      stopCamera();
+      requestRef.current?.abort();
+      requestRef.current = null;
+    },
+    [stopCamera],
+  );
 
   useEffect(() => {
     if (canUseCamera) return;
@@ -95,7 +104,7 @@ export function useTicketScanner() {
 
   async function verify(value: string, generation: number): Promise<void> {
     if (generation !== generationRef.current) return;
-    cameraRef.current?.stop();
+    stopCamera();
     lastValueRef.current = value;
     const request = new AbortController();
     requestRef.current = request;
@@ -127,6 +136,7 @@ export function useTicketScanner() {
     }
     function handleError(error: unknown): void {
       if (generation !== generationRef.current) return;
+      stopCamera();
       setState({ phase: "scannerError", code: scannerErrorCode(error) });
     }
     const started = await camera.start(handleDecoded, handleError);

@@ -208,7 +208,7 @@
       "retryCamera": "Thử bật camera lại",
       "stop": "Dừng",
       "requesting": "Đang chờ quyền camera…",
-      "scanning": "Đang tìm mã QR…",
+      "scanning": "Camera sẵn sàng. Đưa mã QR vào khung.",
       "verifying": "Đang xác minh và check-in…",
       "permissionHint": "Cho phép quyền camera khi trình duyệt hỏi. Trên điện thoại, mở trang qua HTTPS để dùng camera.",
       "resultTitle": "Kết quả xác minh",
@@ -239,6 +239,7 @@
         "denied": "Quyền camera chưa được cấp. Cho phép camera trong cài đặt của trang rồi thử lại.",
         "missing": "Không tìm thấy camera phù hợp. Hãy dùng điện thoại có camera để quét vé.",
         "busy": "Camera chưa dùng được, có thể đang được ứng dụng khác sử dụng. Đóng ứng dụng đó rồi thử lại.",
+        "timeout": "Camera đã tự tắt sau 1 phút chưa quét được mã QR. Bấm thử bật camera lại để tiếp tục.",
         "cameraFailed": "Camera đã dừng hoặc chưa mở được. Hãy thử bật camera lại."
       }
     },
