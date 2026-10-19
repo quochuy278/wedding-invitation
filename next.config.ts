@@ -5,6 +5,9 @@ type ResponseHeader = { key: string; value: string };
 type HeaderRule = { source: string; headers: ResponseHeader[] };
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/*": ["./certificates/supabase-prod-ca.crt"],
+  },
   async headers(): Promise<HeaderRule[]> {
     return [
       { source: "/invitation/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] },
