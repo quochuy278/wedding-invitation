@@ -19,6 +19,9 @@ type AdminDateTimeFieldProps = {
   hint?: string;
   error?: string;
   disabled?: boolean;
+  defaultDate?: string;
+  defaultHour?: string;
+  defaultMinute?: string;
 };
 
 const hours = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
@@ -30,11 +33,14 @@ export function AdminDateTimeField({
   hint,
   error,
   disabled,
+  defaultDate = "",
+  defaultHour = "",
+  defaultMinute = "00",
 }: AdminDateTimeFieldProps): ReactElement {
   const t = useTranslations("Admin.dateTime");
-  const [dateText, setDateText] = useState("");
-  const [hour, setHour] = useState("");
-  const [minute, setMinute] = useState("00");
+  const [dateText, setDateText] = useState(defaultDate);
+  const [hour, setHour] = useState(defaultHour);
+  const [minute, setMinute] = useState(defaultMinute);
   const [open, setOpen] = useState(false);
   const dateInput = useRef<HTMLInputElement>(null);
   const date = parseDisplayDate(dateText);

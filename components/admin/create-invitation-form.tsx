@@ -232,6 +232,9 @@ export function CreateInvitationForm({
                       <AdminDateTimeField
                         key={dateTimeKey}
                         name="expiresAt"
+                        defaultDate="15/01/2027"
+                        defaultHour="23"
+                        defaultMinute="59"
                         label={t("responseDeadline")}
                         hint={timezoneHint}
                         disabled={disabled}
@@ -242,6 +245,7 @@ export function CreateInvitationForm({
                         <Textarea
                           id="personalMessage"
                           name="personalMessage"
+                          defaultValue="Tụi mình rất mong có bạn trong ngày đặc biệt này. Đến chung vui, nâng ly và chụp cùng tụi mình một tấm hình thật đẹp nhé! ❤️"
                           placeholder={t("messagePlaceholder")}
                           rows={5}
                           maxLength={2000}

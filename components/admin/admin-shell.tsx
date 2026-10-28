@@ -34,7 +34,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type NavigationLabel = "overview" | "createInvitation" | "invitations" | "addresses" | "scan";
+type NavigationLabel =
+  | "overview"
+  | "createInvitation"
+  | "invitations"
+  | "addresses"
+  | "scan"
+  | "createUser";
 
 type NavigationItem = {
   href: string;
@@ -71,6 +77,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
   },
   { href: "/dashboard/addresses", icon: MapPinIcon, label: "addresses" },
   { href: "/dashboard/scan", icon: ScanLineIcon, label: "scan" },
+  { href: "/dashboard/users/new", icon: UserRoundIcon, label: "createUser" },
 ];
 
 function AdminNavigationItem({ isActive, item, label }: AdminNavigationItemProps): ReactElement {

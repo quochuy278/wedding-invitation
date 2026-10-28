@@ -6,11 +6,13 @@ import { prisma } from "@/server/db/prisma";
 import { AddressGeocodingError } from "@/server/features/addresses/address.errors";
 import { addressService } from "@/server/features/addresses/address.service";
 import { geoapifyService } from "@/server/features/addresses/geoapify.service";
+import { verifyPassword } from "@/server/features/auth/password";
 import { issueTokens } from "@/server/features/auth/token";
 import { BrevoEmailError, brevoService } from "@/server/features/invitations/brevo.service";
 import { InvitationCreationError } from "@/server/features/invitations/invitation.errors";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
+import { createUser, UserContactConflict } from "@/server/features/users/user.service";
 import type { AddressDto, CreateAddressInput } from "@/shared/contracts/address";
 import { UserLevel } from "@/shared/contracts/auth";
 import { guestApiHeaders } from "@/shared/contracts/guest-api";
@@ -123,6 +125,50 @@ test("saved venues round trip structured details and legacy addresses remain rea
   assert.equal(legacy.addressText, "Original legacy text");
   assert.equal(legacy.city, null);
   assert.equal(legacy.latitude, null);
+});
+
+test("created admins have hashed login credentials and contacts cannot be reused", async () => {
+  const input = invitationInput("new-admin");
+  const password = "a test password with spaces ";
+  const user = await createUser({
+    fullName: input.guestName,
+    email: input.email,
+    phoneNumber: null,
+    level: UserLevel.Admin,
+    password,
+  });
+  const stored = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+  assert.ok(stored.password_hash);
+  assert.notEqual(stored.password_hash, password);
+  assert.ok(await verifyPassword(stored.password_hash, password));
+  assert.equal("password_hash" in user, false);
+  await assert.rejects(
+    createUser({
+      fullName: "Duplicate",
+      email: input.email.toUpperCase(),
+      phoneNumber: null,
+      level: UserLevel.Guest,
+    }),
+    UserContactConflict,
+  );
+  await assert.rejects(invitationService.create(input), InvitationCreationError);
+});
+
+test("a separately created guest can receive exactly one invitation", async () => {
+  const input = invitationInput("new-user-guest");
+  const guest = await createUser({
+    fullName: input.guestName,
+    email: input.email,
+    phoneNumber: input.phoneNumber,
+    level: UserLevel.Guest,
+  });
+  const stored = await prisma.user.findUniqueOrThrow({ where: { id: guest.id } });
+  assert.equal(stored.password_hash, null);
+  await invitationService.create(input);
+  const invitation = await prisma.invitation.findUniqueOrThrow({ where: { user_id: guest.id } });
+  assert.equal(invitation.user_id, guest.id);
+  assert.equal(await prisma.user.count({ where: { email: input.email } }), 1);
+  await assert.rejects(invitationService.create(input), InvitationCreationError);
 });
 
 test("venue creation saves geocoded coordinates and preserves the entered address", async (context) => {
@@ -304,7 +350,7 @@ test("HTTP creation requires an admin session and trusted origin, and validates 
   skip: !process.env.AUTH_TEST_BASE_URL,
 }, async () => {
   const baseUrl = process.env.AUTH_TEST_BASE_URL ?? "http://localhost:3000";
-  for (const endpoint of ["/api/addresses", "/api/invitations"]) {
+  for (const endpoint of ["/api/addresses", "/api/invitations", "/api/users"]) {
     const url = `${baseUrl}${endpoint}`;
     assert.equal((await fetch(url, { method: "POST" })).status, 401);
     assert.equal(

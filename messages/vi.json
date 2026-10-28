@@ -101,7 +101,8 @@
       "administrator": "Quản trị viên",
       "toggle": "Mở hoặc thu gọn thanh điều hướng",
       "addresses": "Địa điểm tổ chức",
-      "scan": "Quét QR vé mời"
+      "scan": "Quét QR vé mời",
+      "createUser": "Tạo user"
     },
     "overview": {
       "title": "Tổng quan",
@@ -287,6 +288,32 @@
       "floorValue": "Tầng: {value}",
       "entranceValue": "Lối vào: {value}",
       "eventTimeZone": "Múi giờ tổ chức"
+    },
+    "createUser": {
+      "title": "Tạo user",
+      "description": "Tạo tài khoản quản trị hoặc hồ sơ khách mời.",
+      "formTitle": "Thông tin user",
+      "formDescription": "Email và số điện thoại không được trùng với user đã có.",
+      "fullName": "Họ và tên",
+      "email": "Email",
+      "phone": "Số điện thoại (không bắt buộc)",
+      "role": "Loại tài khoản",
+      "admin": "Quản trị viên",
+      "guest": "Khách mời",
+      "password": "Mật khẩu",
+      "adminHint": "Có thể đăng nhập và quản lý thiệp, địa điểm, check-in và tạo user.",
+      "guestHint": "Khách mời không có quyền đăng nhập trang quản trị. Khi tạo thiệp, dùng đúng email và số điện thoại của hồ sơ này.",
+      "passwordHint": "Từ 12 đến 1024 ký tự.",
+      "create": "Tạo user",
+      "creating": "Đang tạo…",
+      "reset": "Nhập lại",
+      "created": "Đã tạo user",
+      "createAnother": "Tạo user khác",
+      "adminReady": "Tài khoản đã có thể đăng nhập bằng email và mật khẩu vừa tạo.",
+      "guestReady": "Hồ sơ khách mời đã được lưu. Bạn có thể tạo thiệp bằng email và số điện thoại này.",
+      "conflict": "Email hoặc số điện thoại đã được sử dụng. Vui lòng kiểm tra lại.",
+      "invalidField": "Vui lòng kiểm tra thông tin này.",
+      "invalidPassword": "Mật khẩu phải có từ 12 đến 1024 ký tự."
     }
   },
   "Error": {

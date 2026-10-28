@@ -117,11 +117,27 @@ export const invitationRepository: InvitationRepository = {
             { email: { equals: input.email, mode: "insensitive" } },
           ];
           if (input.phoneNumber) contacts.push({ phone_number: input.phoneNumber });
-          const existingContact = await transaction.user.findFirst({
+          const existingContacts = await transaction.user.findMany({
             where: { OR: contacts },
-            select: { email: true, phone_number: true },
+            select: {
+              id: true,
+              email: true,
+              phone_number: true,
+              level: true,
+              deleted_at: true,
+              invitation: { select: { id: true } },
+            },
           });
-          if (existingContact) {
+          const existingContact = existingContacts[0];
+          const reusableGuest =
+            existingContacts.length === 1 &&
+            existingContact &&
+            existingContact.level === UserLevel.Guest &&
+            !existingContact.deleted_at &&
+            !existingContact.invitation &&
+            existingContact.email.toLowerCase() === input.email.toLowerCase() &&
+            existingContact.phone_number === input.phoneNumber;
+          if (existingContact && !reusableGuest) {
             const fields: string[] = [];
             const duplicateEmail =
               existingContact.email.toLowerCase() === input.email.toLowerCase();
@@ -138,14 +154,16 @@ export const invitationRepository: InvitationRepository = {
             expires_at: new Date(input.expiresAt),
             personal_message: input.personalMessage,
             address: { connect: { id: input.addressId } },
-            user: {
-              create: {
-                full_name: input.guestName,
-                email: input.email,
-                phone_number: input.phoneNumber,
-                level: UserLevel.Guest,
-              },
-            },
+            user: reusableGuest
+              ? { connect: { id: existingContact.id } }
+              : {
+                  create: {
+                    full_name: input.guestName,
+                    email: input.email,
+                    phone_number: input.phoneNumber,
+                    level: UserLevel.Guest,
+                  },
+                },
           };
           return transaction.invitation.create({ data, include: createdInvitationInclude });
         });

@@ -1,7 +1,9 @@
 # Production deployment
 
 The Production environment of Vercel project `wedding-invitation-dev` serves
-`https://thiep-cuoi-huy.vercel.app`. Preview keeps its existing branch URL and
+`https://thiepcuoihuy.vercel.app`. The previous domain
+`https://thiep-cuoi-huy.vercel.app` redirects to this canonical origin.
+Preview keeps its existing branch URL and
 development database. Production uses Supabase project
 `yrsxejjpqgwmapbgsqxv` (Wedding Invitation Production).
 
