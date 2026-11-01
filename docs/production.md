@@ -36,3 +36,49 @@ Production starts with no guests, invitations, venues or administrator accounts.
 The owner chose to create a new Production administrator later; no Preview users
 or guest data were copied. Use the interactive `pnpm admin:create` procedure in
 [the authentication guide](auth.md) with Production connection variables.
+
+## Daily database health check
+
+`vercel.json` schedules `GET /api/cron/database-health` once per day at 06:00 UTC.
+Vercel runs cron jobs on Production deployments only. On Hobby the request may
+arrive anywhere within that hour; local and Preview servers do not schedule it.
+
+Set these server-only Secret environment variables in Vercel Production:
+
+- `CRON_SECRET`: a random value of at least 32 characters. Vercel automatically
+  sends it as `Authorization: Bearer <CRON_SECRET>`.
+- `KEEP_ALIVE_DATABASE_URL`: the Development database's transaction-pooler URL,
+  with the same connection and TLS settings used by Preview. It must point to
+  `plhydlyvfrhwrwajvcgy`, while the existing Production `DATABASE_URL` continues
+  to point to `yrsxejjpqgwmapbgsqxv`.
+
+The endpoint runs a read-only `SELECT 1` through Prisma against both databases
+independently. Each check uses a dedicated single-connection pool, five-second
+connection/query/statement timeouts, and disconnects in `finally`. It does not
+use the application's shared pool or modify application data. Missing or invalid
+cron credentials return `401` before any database access. Responses are never
+cached. `/api/health` remains the public application liveness check.
+
+Authorized responses contain `{ data: { status, timestamp, databases } }`, where
+`databases.primary` is the Production runtime database and
+`databases.development` is the additional Development connection. Each is `ok`,
+`unavailable`, or `unconfigured`. Both must be `ok` for HTTP `200`; a failed or
+missing connection produces HTTP `503` after still checking the other database.
+Responses and logs contain no connection strings or raw driver errors.
+
+Deploy after changing the configuration or secrets, then run the cron manually
+from Vercel's project Settings > Cron Jobs and inspect its response and logs.
+A paused Supabase project must first be restored from the Supabase dashboard;
+this endpoint cannot resume an already-paused project. Daily queries create
+database activity but do not guarantee exemption from Free-plan inactivity
+pausing. See [Supabase availability](https://supabase.com/docs/guides/deployment/going-into-prod#availability)
+and [Vercel cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
+
+`pnpm test` includes the cron authentication, configuration, independent failure,
+and response/privacy cases. `pnpm test:integration` additionally runs real Prisma
+checks using the configured `DATABASE_URL`, including an unreachable secondary
+database and a stalled connection timeout. It creates no health-check fixtures.
+Set `DATABASE_HEALTH_TEST_BASE_URL` to an isolated running server and provide its
+`CRON_SECRET` to also enable the HTTP regression test. That server must have both
+database URLs configured; the test checks authentication, repeated successful
+probes, private response headers, and unsupported methods.
