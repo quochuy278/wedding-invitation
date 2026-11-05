@@ -39,9 +39,10 @@ or guest data were copied. Use the interactive `pnpm admin:create` procedure in
 
 ## Daily database health check
 
-`vercel.json` schedules `GET /api/cron/database-health` once per day at 06:00 UTC.
-Vercel runs cron jobs on Production deployments only. On Hobby the request may
-arrive anywhere within that hour; local and Preview servers do not schedule it.
+The `database-health` entry under `schedules` in `vercel.json` calls
+`GET /api/cron/database-health` once per day at 06:00 UTC. Vercel activates this
+schedule in Production and leaves it inactive by default in Preview. On Hobby,
+Vercel starts it within the 15-minute scheduling window.
 
 Set these server-only Secret environment variables in Vercel Production:
 
@@ -56,7 +57,7 @@ The endpoint runs a read-only `SELECT 1` through Prisma against both databases
 independently. Each check uses a dedicated single-connection pool, five-second
 connection/query/statement timeouts, and disconnects in `finally`. It does not
 use the application's shared pool or modify application data. Missing or invalid
-cron credentials return `401` before any database access. Responses are never
+scheduler credentials return `401` before any database access. Responses are never
 cached. `/api/health` remains the public application liveness check.
 
 Authorized responses contain `{ data: { status, timestamp, databases } }`, where
@@ -66,13 +67,15 @@ Authorized responses contain `{ data: { status, timestamp, databases } }`, where
 missing connection produces HTTP `503` after still checking the other database.
 Responses and logs contain no connection strings or raw driver errors.
 
-Deploy after changing the configuration or secrets, then run the cron manually
-from Vercel's project Settings > Cron Jobs and inspect its response and logs.
+Deploy after changing the configuration or secrets. In the Vercel project, open
+**Schedules**, select `database-health`, and choose **Run Schedule** to verify
+its execution. With the Vercel CLI authenticated and linked to the project, run
+`vercel schedules invoke database-health`.
 A paused Supabase project must first be restored from the Supabase dashboard;
 this endpoint cannot resume an already-paused project. Daily queries create
 database activity but do not guarantee exemption from Free-plan inactivity
 pausing. See [Supabase availability](https://supabase.com/docs/guides/deployment/going-into-prod#availability)
-and [Vercel cron management](https://vercel.com/docs/cron-jobs/manage-cron-jobs).
+and [Vercel schedule management](https://vercel.com/docs/schedules/manage).
 
 `pnpm test` includes the cron authentication, configuration, independent failure,
 and response/privacy cases. `pnpm test:integration` additionally runs real Prisma

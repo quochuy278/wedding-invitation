@@ -227,9 +227,14 @@ test("unexpected failures and non-Error rejections are sanitized", async () => {
   for (const value of Object.values(settings)) assert.ok(!logged.includes(value));
 });
 
-test("the deployed cron targets the protected endpoint once daily within its execution budget", async () => {
+test("Vercel Schedules calls the protected endpoint daily with GET and replaces the legacy cron", async () => {
   const file = await readFile(new URL("../vercel.json", import.meta.url), "utf8");
   const config = JSON.parse(file);
-  assert.deepEqual(config.crons, [{ path: "/api/cron/database-health", schedule: "0 6 * * *" }]);
+  assert.equal(config.crons, undefined);
+  assert.deepEqual(config.schedules["database-health"], {
+    path: "/api/cron/database-health",
+    schedule: "0 6 * * *",
+    requestMethod: "GET",
+  });
   assert.equal(maxDuration, 30);
 });
