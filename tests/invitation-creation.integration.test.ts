@@ -16,7 +16,11 @@ import { createUser, UserContactConflict } from "@/server/features/users/user.se
 import type { AddressDto, CreateAddressInput } from "@/shared/contracts/address";
 import { UserLevel } from "@/shared/contracts/auth";
 import { guestApiHeaders } from "@/shared/contracts/guest-api";
-import type { CreatedInvitationDto, CreateInvitationInput } from "@/shared/contracts/invitation";
+import type {
+  CreatedInvitationDto,
+  CreateInvitationInput,
+  InvitationListDto,
+} from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { generateId } from "@/shared/utils/id";
 
@@ -283,7 +287,8 @@ test("creation sends the saved invitation exactly once after the transaction com
   );
   const created = await invitationService.create(input);
   assert.equal(send.mock.callCount(), 1);
-  assert.deepEqual(send.mock.calls[0].arguments, [created]);
+  assert.deepEqual(send.mock.calls[0].arguments[0], created);
+  assert.match(send.mock.calls[0].arguments[1] ?? "", /^[0-9a-f-]{36}$/);
 });
 
 test("an email failure keeps the saved invitation and does not retry sending", async (context) => {
@@ -291,10 +296,13 @@ test("an email failure keeps the saved invitation and does not retry sending", a
   const send = context.mock.method(brevoService, "sendInvitation", async () => {
     throw new BrevoEmailError("provider");
   });
-  const log = context.mock.method(console, "error", () => {});
   const created = await invitationService.create(input);
   assert.equal(send.mock.callCount(), 1);
-  assert.deepEqual(log.mock.calls[0].arguments, ["Invitation email failed:", "provider"]);
+  const list = await invitationService.list({ page: 1, pageSize: 100 });
+  const item = list.items.find((item) => item.code === created.code);
+  assert.equal(item?.emailStatus, "failed");
+  assert.equal(item?.emailError, "provider");
+  assert.equal(item?.canResendEmail, true);
   assert.equal(await prisma.invitation.count({ where: { id: created.id } }), 1);
   assert.equal((await invitationService.getByCode(created.code))?.code, created.code);
 });
@@ -446,11 +454,14 @@ test("HTTP creates a venue then invitation and renders its real address and gues
   const { data: publicInvitation } = await lookup.json();
   assert.equal(publicInvitation.code, created.code);
   assert.equal(publicInvitation.guest.fullName, input.guestName);
-  assert.equal((await fetch(`${publicUrl}/${created.id}`)).status, 404);
+  assert.equal(
+    (await fetch(`${publicUrl}/${created.id}`, { headers: guestApiHeaders })).status,
+    404,
+  );
   for (const code of [created.code, created.code.toLowerCase()]) {
     const validation = await fetch(`${publicUrl}/validate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...guestApiHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
     });
     assert.equal(validation.status, 200);
@@ -459,12 +470,163 @@ test("HTTP creates a venue then invitation and renders its real address and gues
   for (const code of ["ABC12", "ABC1234", "ABC-12", "ß1234"]) {
     const validation = await fetch(`${publicUrl}/validate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { ...guestApiHeaders, "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
     });
     assert.equal(validation.status, 400, code);
     const body = await validation.json();
     assert.equal(body.error.details[0].field, "code");
+  }
+});
+
+test("HTTP tracks a failed email, allows one admin resend and applies authenticated Brevo events", {
+  skip: process.env.BREVO_EMAIL_E2E !== "true",
+}, async () => {
+  const baseUrl = process.env.AUTH_TEST_BASE_URL;
+  const secret = process.env.BREVO_WEBHOOK_SECRET;
+  assert.ok(baseUrl);
+  assert.ok(secret);
+  const listUrl = `${baseUrl}/api/invitations`;
+  const webhookUrl = `${baseUrl}/api/webhooks/brevo`;
+  const headers = {
+    Cookie: adminCookie,
+    Origin: new URL(baseUrl).origin,
+    "Content-Type": "application/json",
+  };
+  const create = async (label: string): Promise<CreatedInvitationDto> => {
+    const response = await fetch(listUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(invitationInput(label)),
+    });
+    assert.equal(response.status, 201);
+    return (await response.json()).data;
+  };
+  const listItem = async (code: string) => {
+    const response = await fetch(`${listUrl}?pageSize=100`, { headers });
+    assert.equal(response.status, 200);
+    const { data }: { data: InvitationListDto } = await response.json();
+    const item = data.items.find((item) => item.code === code);
+    assert.ok(item);
+    return item;
+  };
+  const webhook = (body: string, authorization = `Bearer ${secret}`) =>
+    fetch(webhookUrl, {
+      method: "POST",
+      headers: { Authorization: authorization, "Content-Type": "application/json" },
+      body,
+    });
+  const event = (attemptId: string | null, event: string) =>
+    JSON.stringify({
+      event,
+      "X-Mailin-custom": `invitation-attempt:${attemptId}`,
+      "message-id": `invitation-attempt:${attemptId}@example.invalid`,
+    });
+  const attempt = (id: string) =>
+    prisma.invitation.findUniqueOrThrow({ where: { id }, select: { email_attempt_id: true } });
+
+  const created = await create("email-e2e");
+  const failed = await listItem(created.code);
+  assert.equal(failed.emailStatus, "failed");
+  assert.equal(failed.canResendEmail, true);
+  const firstAttempt = await attempt(created.id);
+  assert.ok(firstAttempt.email_attempt_id);
+  const resendUrl = `${baseUrl}/api/invitation-email/${created.code}`;
+  assert.equal((await fetch(resendUrl, { method: "POST" })).status, 401);
+  assert.equal(
+    (
+      await fetch(resendUrl, {
+        method: "POST",
+        headers: { ...headers, Cookie: guestCookie },
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await fetch(resendUrl, {
+        method: "POST",
+        headers: { ...headers, Origin: "https://untrusted.example.invalid" },
+      })
+    ).status,
+    403,
+  );
+  const responses = await Promise.all([
+    fetch(resendUrl, { method: "POST", headers }),
+    fetch(resendUrl, { method: "POST", headers }),
+  ]);
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
+  assert.equal((await listItem(created.code)).emailStatus, "accepted");
+  const secondAttempt = await attempt(created.id);
+  assert.ok(secondAttempt.email_attempt_id);
+  assert.notEqual(firstAttempt.email_attempt_id, secondAttempt.email_attempt_id);
+  assert.equal((await webhook(event(firstAttempt.email_attempt_id, "delivered"))).status, 204);
+  assert.equal(
+    (await webhook(event(secondAttempt.email_attempt_id, "delivered"), "Bearer wrong")).status,
+    401,
+  );
+  assert.equal((await webhook("bad-json")).status, 400);
+  assert.equal((await webhook("x".repeat(16_385))).status, 413);
+  assert.equal((await listItem(created.code)).emailStatus, "accepted");
+  for (const name of ["delivered", "delivered", "request", "hard_bounce"]) {
+    assert.equal((await webhook(event(secondAttempt.email_attempt_id, name))).status, 204);
+  }
+  assert.equal((await listItem(created.code)).emailStatus, "delivered");
+
+  const ambiguous = await create("email-ambiguous");
+  assert.equal((await listItem(ambiguous.code)).emailStatus, "unconfirmed");
+  assert.equal(
+    (
+      await fetch(`${baseUrl}/api/invitation-email/${ambiguous.code}`, {
+        method: "POST",
+        headers,
+      })
+    ).status,
+    409,
+  );
+  const ambiguousAttempt = await attempt(ambiguous.id);
+  assert.ok(ambiguousAttempt.email_attempt_id);
+  assert.equal(
+    (await webhook(event(ambiguousAttempt.email_attempt_id, "hard_bounce"))).status,
+    204,
+  );
+  const bounced = await listItem(ambiguous.code);
+  assert.equal(bounced.emailStatus, "bounced");
+  assert.equal(bounced.emailError, "hard_bounce");
+
+  const browserModule = process.env.BREVO_E2E_PLAYWRIGHT;
+  if (browserModule) {
+    const { chromium } = await import(browserModule);
+    const browser = await chromium.launch({
+      channel: process.env.BREVO_E2E_BROWSER ?? "msedge",
+    });
+    try {
+      const browserInvite = await create("email-e2e-browser");
+      const page = await browser.newPage();
+      const cookieSeparator = adminCookie.indexOf("=");
+      await page.context().addCookies([
+        {
+          name: adminCookie.slice(0, cookieSeparator),
+          value: adminCookie.slice(cookieSeparator + 1),
+          url: baseUrl,
+        },
+      ]);
+      await page.goto(`${baseUrl}/dashboard/invitations`);
+      const row = page.getByRole("row").filter({ hasText: browserInvite.code });
+      await row.getByText("Gửi thất bại", { exact: true }).waitFor();
+      await row.getByRole("button", { name: "Gửi lại", exact: true }).click();
+      await row.getByText("Brevo đã nhận", { exact: true }).waitFor();
+      const browserAttempt = await attempt(browserInvite.id);
+      assert.ok(browserAttempt.email_attempt_id);
+      assert.equal(
+        (await webhook(event(browserAttempt.email_attempt_id, "delivered"))).status,
+        204,
+      );
+      await page.reload();
+      await row.getByText("Máy chủ nhận đã nhận", { exact: true }).waitFor();
+    } finally {
+      await browser.close();
+    }
   }
 });
 

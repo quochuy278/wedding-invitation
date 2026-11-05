@@ -20,6 +20,10 @@ const adminInvitationSelect = {
   status: true,
   guest_count: true,
   updated_at: true,
+  email_status: true,
+  email_error: true,
+  email_attempted_at: true,
+  expires_at: true,
   user: { select: { full_name: true, phone_number: true } },
 } as const satisfies Prisma.InvitationSelect;
 

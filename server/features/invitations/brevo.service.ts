@@ -33,7 +33,7 @@ function emailConfig() {
 }
 
 export const brevoService = {
-  async sendInvitation(invitation: CreatedInvitationDto): Promise<string> {
+  async sendInvitation(invitation: CreatedInvitationDto, attemptId?: string): Promise<string> {
     const config = emailConfig();
     const path = `/invitation/${encodeURIComponent(invitation.code)}`;
     const invitationUrl = new URL(path, config.origin).href;
@@ -42,6 +42,7 @@ export const brevoService = {
       sender: { name: config.senderName, email: config.senderEmail },
       to: [{ name: invitation.guestName, email: invitation.email }],
       ...content,
+      ...(attemptId && { headers: { "X-Mailin-custom": `invitation-attempt:${attemptId}` } }),
       tags: ["wedding-invitation"],
     };
     let response: Response;

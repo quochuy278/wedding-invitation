@@ -11,10 +11,11 @@ import {
   UsersIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useEffect, useState } from "react";
+import { type ChangeEvent, type ReactElement, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Pagination,
   PaginationContent,
@@ -30,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useInvitations } from "@/hooks/queries/use-invitations";
+import { useInvitations, useResendInvitationEmail } from "@/hooks/queries/use-invitations";
 import {
   type InvitationListItemDto,
   type InvitationListParams,
@@ -38,11 +39,17 @@ import {
 } from "@/shared/contracts/invitation";
 import { InvitationWishDialog } from "./invitation-wish-dialog";
 
-const loadingRowKeys = Array.from(
-  { length: invitationPaginationDefaults.pageSize },
-  (_, index) => `loading-row-${index}`,
-);
-const columnKeys = ["guest", "code", "status", "guestCount", "updatedAt", "wishes"] as const;
+const pageSizeOptions = [5, 10, invitationPaginationDefaults.pageSize, 50] as const;
+const loadingRowKeys = Array.from({ length: 5 }, (_, index) => `loading-row-${index}`);
+const columnKeys = [
+  "guest",
+  "code",
+  "status",
+  "guestCount",
+  "updatedAt",
+  "email",
+  "wishes",
+] as const;
 
 function visiblePageNumbers(page: number, totalPages: number): number[] {
   const shouldShowAllPages: boolean = totalPages <= 7;
@@ -60,11 +67,13 @@ export function InvitationList(): ReactElement {
   const errorT = useTranslations("ApiErrors");
   const paginationT = useTranslations("Ui.pagination");
   const [page, setPage] = useState<number>(invitationPaginationDefaults.page);
+  const [pageSize, setPageSize] = useState<number>(invitationPaginationDefaults.pageSize);
   const queryParams: InvitationListParams = {
     page,
-    pageSize: invitationPaginationDefaults.pageSize,
+    pageSize,
   };
   const { data, error, isPending, isFetching, isError, refetch } = useInvitations(queryParams);
+  const resendEmail = useResendInvitationEmail();
   const busy: boolean = isFetching;
   const currentPage: number = data?.pagination.page ?? page;
   const totalPages: number = data?.pagination.totalPages ?? 1;
@@ -84,7 +93,6 @@ export function InvitationList(): ReactElement {
   const nextPageLabel: string = paginationT("next");
   const previousPageAriaLabel: string = paginationT("goToPrevious");
   const nextPageAriaLabel: string = paginationT("goToNext");
-  const pageSize: number = data?.pagination.pageSize ?? invitationPaginationDefaults.pageSize;
   const rangeFrom: number = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const rangeTo: number = Math.min(currentPage * pageSize, totalItems);
   const rangeValues = { from: rangeFrom, to: rangeTo, total: totalItems };
@@ -111,6 +119,12 @@ export function InvitationList(): ReactElement {
 
   function handleNextPageClick(): void {
     changePage(nextPage);
+  }
+
+  function handlePageSizeChange(event: ChangeEvent<HTMLSelectElement>): void {
+    const selectedPageSize: number = Number(event.currentTarget.value);
+    setPageSize(selectedPageSize);
+    setPage(invitationPaginationDefaults.page);
   }
 
   function handleRetry(): void {
@@ -168,6 +182,13 @@ export function InvitationList(): ReactElement {
     const phoneNumber: string = invitation.phoneNumber ?? "—";
     const statusBadge: ReactElement = renderStatus(invitation.status);
     const updatedAt: string = dayjs(invitation.updatedAt).format("DD/MM/YYYY");
+    const emailStatus = invitation.emailStatus ?? "untracked";
+    const resendFailed = resendEmail.isError && resendEmail.variables === invitation.code;
+
+    function handleResendEmail(): void {
+      if (emailStatus === "untracked" && !window.confirm(t("email.confirmUntracked"))) return;
+      resendEmail.mutate(invitation.code);
+    }
 
     return (
       <TableRow key={invitation.id}>
@@ -179,6 +200,34 @@ export function InvitationList(): ReactElement {
         <TableCell>{statusBadge}</TableCell>
         <TableCell className="text-center">{invitation.guestCount}</TableCell>
         <TableCell className="whitespace-nowrap text-muted-foreground">{updatedAt}</TableCell>
+        <TableCell>
+          <Badge
+            variant={
+              emailStatus === "failed" || emailStatus === "bounced" ? "destructive" : "outline"
+            }
+          >
+            {t(`email.${emailStatus}`)}
+          </Badge>
+          {invitation.emailError === "configuration" && (
+            <p className="mt-1 text-xs text-muted-foreground">{t("email.configuration")}</p>
+          )}
+          {invitation.canResendEmail && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={resendEmail.isPending}
+              onClick={handleResendEmail}
+            >
+              {t("email.resend")}
+            </Button>
+          )}
+          {resendFailed && (
+            <p role="alert" className="mt-1 text-xs text-destructive">
+              {t("email.retryError")}
+            </p>
+          )}
+        </TableCell>
         <TableCell>
           <InvitationWishDialog code={invitation.code} guestName={invitation.guestName} />
         </TableCell>
@@ -237,6 +286,20 @@ export function InvitationList(): ReactElement {
           </span>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
+            <label htmlFor="invitation-page-size">{t("rowsPerPage")}</label>
+            <NativeSelect
+              id="invitation-page-size"
+              value={pageSize}
+              onChange={handlePageSizeChange}
+            >
+              {pageSizeOptions.map((option) => (
+                <NativeSelectOption key={option} value={option}>
+                  {option}
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
           {shouldShowError ? (
             <div role="alert" className="flex flex-col items-center gap-4 py-10 text-center">
               <p className="text-sm text-destructive">{errorMessage}</p>
@@ -254,6 +317,7 @@ export function InvitationList(): ReactElement {
                     <TableHead>{t("status")}</TableHead>
                     <TableHead className="text-center">{t("guestCount")}</TableHead>
                     <TableHead>{t("updatedAt")}</TableHead>
+                    <TableHead>{t("email.title")}</TableHead>
                     <TableHead>{t("wishes")}</TableHead>
                   </TableRow>
                 </TableHeader>

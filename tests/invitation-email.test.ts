@@ -62,7 +62,8 @@ test("Brevo sends a private HTTP payload with the canonical invitation URL and m
     Response.json({ messageId: "<test-message@brevo>" }, { status: 201 }),
   );
   const timeout = context.mock.method(AbortSignal, "timeout");
-  const messageId = await brevoService.sendInvitation(invitation);
+  const attemptId = "e28d18b3-fc55-4477-afda-6598fc0ab733";
+  const messageId = await brevoService.sendInvitation(invitation, attemptId);
   assert.equal(messageId, "<test-message@brevo>");
   assert.equal(request.mock.callCount(), 1);
   const [url, options] = request.mock.calls[0].arguments;
@@ -76,6 +77,7 @@ test("Brevo sends a private HTTP payload with the canonical invitation URL and m
   const body = JSON.parse(String(options?.body));
   assert.deepEqual(body.sender, { email: settings.BREVO_SENDER_EMAIL, name: "noreply" });
   assert.deepEqual(body.to, [{ email: invitation.email, name: invitation.guestName }]);
+  assert.equal(body.headers["X-Mailin-custom"], `invitation-attempt:${attemptId}`);
   assert.ok(body.htmlContent.includes("https://wedding.example.invalid/invitation/ABC123"));
   assert.ok(body.textContent.includes("Hẹn gặp bạn!"));
   assert.ok(!JSON.stringify(body).includes(settings.BREVO_API_KEY));

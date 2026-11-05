@@ -23,6 +23,9 @@ export const invitationService = {
     });
     return response.data.data;
   },
+  async resendEmail(code: string): Promise<void> {
+    await apiClient.post(`/invitation-email/${encodeURIComponent(code)}`);
+  },
 
   async validateCode(input: ValidateInvitationCodeInput): Promise<InvitationCodeValidationDto> {
     const response = await apiClient.post<ApiResponse<InvitationCodeValidationDto>>(

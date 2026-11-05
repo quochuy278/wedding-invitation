@@ -51,10 +51,10 @@ test("partial code input uppercases ASCII and rejects invalid or overlong pastes
     assert.equal(isInvitationCodeInput(code), false);
 });
 
-test("invitation pagination defaults to the first five records", () => {
+test("invitation pagination defaults to the first twenty records", () => {
   assert.deepEqual(parseInvitationListQuery(new URLSearchParams()), {
     success: true,
-    data: { page: 1, pageSize: 5 },
+    data: { page: 1, pageSize: 20 },
   });
   assert.deepEqual(parseInvitationListQuery(new URLSearchParams("page=2&pageSize=100")), {
     success: true,

@@ -44,6 +44,14 @@ export function useInvitations(params: InvitationListParams) {
   });
 }
 
+export function useResendInvitationEmail(): UseMutationResult<void, ResolvedApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: invitationService.resendEmail,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: invitationQueryKeys.all }),
+  });
+}
+
 type InvitationCodeCheckResult = InvitationDto | null;
 type CheckInvitationCodeMutation = UseMutationResult<
   InvitationCodeCheckResult,

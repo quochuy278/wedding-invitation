@@ -11,9 +11,9 @@ import type {
 } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
-import { BrevoEmailError, brevoService } from "./brevo.service";
 import { InvitationCreationError } from "./invitation.errors";
 import { invitationRepository, type PublicInvitationRecord } from "./invitation.repository";
+import { invitationEmailService, toCreatedInvitationDto } from "./invitation-email.service";
 
 export function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
   return {
@@ -40,27 +40,15 @@ export const invitationService = {
     const hasFutureDeadline = Date.parse(input.expiresAt) > now().valueOf();
     if (!hasFutureDeadline) throw new InvitationCreationError("expiredDeadline", ["expiresAt"]);
     const invitation = await invitationRepository.create(input);
-    const created: CreatedInvitationDto = {
-      id: invitation.id,
-      code: invitation.code,
-      status: invitation.status,
-      guestName: invitation.user.full_name,
-      email: invitation.user.email,
-      phoneNumber: invitation.user.phone_number,
-      address: toAddressDto(invitation.address),
-      expiresAt: invitation.expires_at.toISOString(),
-      personalMessage: invitation.personal_message,
-    };
-    try {
-      await brevoService.sendInvitation(created);
-    } catch (error: unknown) {
-      const reason = error instanceof BrevoEmailError ? error.code : "unknown";
-      console.error("Invitation email failed:", reason);
-    }
+    const created = toCreatedInvitationDto(invitation);
+    await invitationEmailService.send(created.code, false).catch(() => {
+      console.error("Invitation email state could not be saved.");
+    });
     return created;
   },
   async list(params: InvitationListParams): Promise<InvitationListDto> {
     const result = await invitationRepository.findPage(params);
+    const currentTime = now();
     return {
       ...result,
       items: result.items.map((invitation) => ({
@@ -71,6 +59,15 @@ export const invitationService = {
         status: invitation.status,
         guestCount: invitation.guest_count,
         updatedAt: invitation.updated_at.toISOString(),
+        emailStatus: invitationEmailService.visibleStatus(
+          invitation.email_status,
+          invitation.email_attempted_at,
+          currentTime.valueOf(),
+        ),
+        emailError: invitation.email_error,
+        canResendEmail:
+          invitation.expires_at.getTime() > currentTime.valueOf() &&
+          (invitation.email_status === null || invitation.email_status === "failed"),
       })),
     };
   },

@@ -143,7 +143,18 @@ test("list pagination uses stable order, global summary and excludes deleted rec
   assert.equal(await invitationService.getByCode(invitations[0].code), null);
   assert.deepEqual(
     Object.keys(expired).sort(),
-    ["id", "code", "guestName", "phoneNumber", "status", "guestCount", "updatedAt"].sort(),
+    [
+      "id",
+      "code",
+      "guestName",
+      "phoneNumber",
+      "status",
+      "guestCount",
+      "updatedAt",
+      "emailStatus",
+      "emailError",
+      "canResendEmail",
+    ].sort(),
   );
   assert.equal(expired.phoneNumber, null);
   assert.equal(expired.updatedAt, invitations[0].updated_at.toISOString());

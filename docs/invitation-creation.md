@@ -1,5 +1,26 @@
 # Venue and invitation creation
 
+## Invitation email
+
+Creating an invitation saves it before attempting delivery through Brevo. The admin list
+shows whether Brevo accepted the request, it failed, or its outcome is unconfirmed.
+Use **Gửi lại** for a failed send or a legacy invitation after checking its history.
+An unconfirmed send may already have reached Brevo, so the dashboard blocks retries
+while that outcome remains unknown.
+
+Configure a transactional, single-event Brevo webhook at `/api/webhooks/brevo`.
+Set bearer authentication to the same value as the server-only
+`BREVO_WEBHOOK_SECRET` and subscribe to `sent`, `delivered`, `hardBounce`,
+`blocked`, and `invalid`. See [Brevo webhook authentication](https://developers.brevo.com/docs/secured-webhooks).
+
+The email E2E test uses the real local Next.js server and a development database.
+Start Next with `NODE_OPTIONS=--import=./tests/fixtures/brevo-email-mock.mjs` and
+fixture values for `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, and
+`BREVO_WEBHOOK_SECRET`. Run the integration suite with `BREVO_EMAIL_E2E=true`,
+`AUTH_TEST_BASE_URL`, and the same webhook secret. Set `BREVO_E2E_PLAYWRIGHT`
+to a Playwright module file URL to also exercise the dashboard in a browser
+(Edge by default, configurable via `BREVO_E2E_BROWSER`).
+
 Admins create venues at `/dashboard/addresses/new`, review them at `/dashboard/addresses`, then select a saved venue at `/dashboard/invitations/new`. A venue can be reused by multiple invitations. Venue links preselect its ID in the invitation form.
 
 ## Address data

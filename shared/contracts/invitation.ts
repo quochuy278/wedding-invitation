@@ -34,7 +34,7 @@ export type InvitationTicketDto = {
 
 export const invitationPaginationDefaults = {
   page: 1,
-  pageSize: 5,
+  pageSize: 20,
   maxPageSize: 100,
 } as const;
 
@@ -51,7 +51,18 @@ export type InvitationListItemDto = {
   status: string;
   guestCount: number;
   updatedAt: string;
+  emailStatus: InvitationEmailStatus | null;
+  emailError: string | null;
+  canResendEmail: boolean;
 };
+
+export type InvitationEmailStatus =
+  | "pending"
+  | "accepted"
+  | "failed"
+  | "unconfirmed"
+  | "delivered"
+  | "bounced";
 
 export type InvitationListDto = {
   items: InvitationListItemDto[];

@@ -194,6 +194,21 @@
       "pending": "Đang chờ",
       "declined": "Từ chối",
       "attended": "Đã tham dự",
+      "email": {
+        "title": "Email",
+        "untracked": "Chưa có lịch sử gửi",
+        "pending": "Đang gửi",
+        "accepted": "Brevo đã nhận",
+        "failed": "Gửi thất bại",
+        "unconfirmed": "Chưa xác nhận",
+        "delivered": "Máy chủ nhận đã nhận",
+        "bounced": "Không giao được",
+        "configuration": "Cần kiểm tra cấu hình Brevo.",
+        "resend": "Gửi lại",
+        "confirmUntracked": "Thiệp này có thể đã được gửi trước đây. Bạn muốn gửi email cho khách này?",
+        "retryError": "Không thể thực hiện yêu cầu gửi lại."
+      },
+      "rowsPerPage": "Số thiệp mỗi trang",
       "range": "Hiển thị {from}–{to} trong tổng số {total} thiệp"
     },
     "scan": {
