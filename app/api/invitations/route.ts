@@ -8,14 +8,17 @@ import {
 } from "@/server/features/invitations/invitation.schema";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { badRequest, ok } from "@/server/shared/http/api-response";
+import { invitationTimeZoneHeader } from "@/shared/contracts/invitation";
 
 export async function GET(request: Request): Promise<Response> {
   try {
     const session = await getAdminSession();
     if (!session) return authError(ApiErrorCode.Unauthorized, "Authentication required.", 401);
-    const parsed = parseInvitationListQuery(new URL(request.url).searchParams);
+    const query: URLSearchParams = new URL(request.url).searchParams;
+    const timeZone: string | null = request.headers.get(invitationTimeZoneHeader);
+    const parsed = parseInvitationListQuery(query, timeZone);
     if (!parsed.success) {
-      return privateResponse(badRequest("Invalid pagination parameters.", parsed.errors));
+      return privateResponse(badRequest("Invalid invitation list parameters.", parsed.errors));
     }
     const invitations = await invitationService.list(parsed.data);
     return privateResponse(ok(invitations));

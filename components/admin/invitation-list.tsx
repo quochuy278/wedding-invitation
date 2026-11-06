@@ -1,11 +1,11 @@
 "use client";
 
-import dayjs from "dayjs";
 import {
   CheckCircle2Icon,
   ChevronLeftIcon,
   ChevronRightIcon,
   Clock3Icon,
+  EllipsisIcon,
   ListChecksIcon,
   LoaderCircleIcon,
   UsersIcon,
@@ -15,6 +15,12 @@ import { type ChangeEvent, type ReactElement, useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Pagination,
@@ -37,6 +43,8 @@ import {
   type InvitationListParams,
   invitationPaginationDefaults,
 } from "@/shared/contracts/invitation";
+import { formatLocalDate } from "@/shared/utils/date";
+import { type InvitationFilters, InvitationFiltersDialog } from "./invitation-filters-dialog";
 import { InvitationWishDialog } from "./invitation-wish-dialog";
 
 const pageSizeOptions = [5, 10, invitationPaginationDefaults.pageSize, 50] as const;
@@ -44,12 +52,20 @@ const loadingRowKeys = Array.from({ length: 5 }, (_, index) => `loading-row-${in
 const columnKeys = [
   "guest",
   "code",
+  "address",
   "status",
   "guestCount",
   "updatedAt",
   "email",
-  "wishes",
+  "actions",
 ] as const;
+
+type WishDialogSelection = {
+  code: string;
+  guestName: string;
+  triggerId: string;
+  open: boolean;
+};
 
 function visiblePageNumbers(page: number, totalPages: number): number[] {
   const shouldShowAllPages: boolean = totalPages <= 7;
@@ -64,16 +80,26 @@ function visiblePageNumbers(page: number, totalPages: number): number[] {
 
 export function InvitationList(): ReactElement {
   const t = useTranslations("Admin.invitations");
+  const wishesT = useTranslations("Admin.wishes");
   const errorT = useTranslations("ApiErrors");
   const paginationT = useTranslations("Ui.pagination");
   const [page, setPage] = useState<number>(invitationPaginationDefaults.page);
   const [pageSize, setPageSize] = useState<number>(invitationPaginationDefaults.pageSize);
+  const [filters, setFilters] = useState<InvitationFilters>({});
+  const [wishDialog, setWishDialog] = useState<WishDialogSelection | null>(null);
+  const { timeZone, ...listFilters } = filters;
   const queryParams: InvitationListParams = {
+    ...listFilters,
     page,
     pageSize,
   };
-  const { data, error, isPending, isFetching, isError, refetch } = useInvitations(queryParams);
+  const { data, error, isPending, isFetching, isError, refetch } = useInvitations(
+    queryParams,
+    timeZone,
+  );
   const resendEmail = useResendInvitationEmail();
+  const hasFilters: boolean = Boolean(filters.addressId || filters.status || timeZone);
+  const emptyMessage: string = hasFilters ? t("emptyFiltered") : t("empty");
   const busy: boolean = isFetching;
   const currentPage: number = data?.pagination.page ?? page;
   const totalPages: number = data?.pagination.totalPages ?? 1;
@@ -127,8 +153,17 @@ export function InvitationList(): ReactElement {
     setPage(invitationPaginationDefaults.page);
   }
 
+  function handleApplyFilters(nextFilters: InvitationFilters): void {
+    setFilters(nextFilters);
+    setPage(invitationPaginationDefaults.page);
+  }
+
   function handleRetry(): void {
     void refetch();
+  }
+
+  function handleWishDialogOpenChange(open: boolean): void {
+    setWishDialog((selection) => selection && { ...selection, open });
   }
 
   function renderStatus(status: string): ReactElement {
@@ -181,12 +216,30 @@ export function InvitationList(): ReactElement {
   function renderInvitation(invitation: InvitationListItemDto): ReactElement {
     const phoneNumber: string = invitation.phoneNumber ?? "—";
     const statusBadge: ReactElement = renderStatus(invitation.status);
-    const updatedAt: string = dayjs(invitation.updatedAt).format("DD/MM/YYYY");
+    const updatedAt: string = formatLocalDate(invitation.updatedAt, timeZone);
     const emailStatus = invitation.emailStatus ?? "untracked";
+    const resendDisabled = !invitation.canResendEmail || resendEmail.isPending;
     const resendFailed = resendEmail.isError && resendEmail.variables === invitation.code;
+    const triggerId: string = `invitation-actions-${invitation.id}`;
+    const actionLabel: string = t("actionsFor", { name: invitation.guestName });
+    const viewWishesLabel: string = wishesT("viewFor", { name: invitation.guestName });
+
+    function handleViewWishes(): void {
+      setWishDialog({
+        code: invitation.code,
+        guestName: invitation.guestName,
+        triggerId,
+        open: true,
+      });
+    }
 
     function handleResendEmail(): void {
-      if (emailStatus === "untracked" && !window.confirm(t("email.confirmUntracked"))) return;
+      const mayHaveBeenSent =
+        emailStatus === "untracked" ||
+        emailStatus === "unconfirmed" ||
+        emailStatus === "accepted" ||
+        emailStatus === "delivered";
+      if (mayHaveBeenSent && !window.confirm(t("email.confirmResend"))) return;
       resendEmail.mutate(invitation.code);
     }
 
@@ -197,11 +250,15 @@ export function InvitationList(): ReactElement {
           <p className="text-xs text-muted-foreground">{phoneNumber}</p>
         </TableCell>
         <TableCell className="font-mono text-xs">{invitation.code}</TableCell>
+        <TableCell className="min-w-36 max-w-56 whitespace-normal wrap-anywhere">
+          {invitation.address.name}
+        </TableCell>
         <TableCell>{statusBadge}</TableCell>
         <TableCell className="text-center">{invitation.guestCount}</TableCell>
         <TableCell className="whitespace-nowrap text-muted-foreground">{updatedAt}</TableCell>
-        <TableCell>
+        <TableCell className="max-w-48 whitespace-normal">
           <Badge
+            className="h-auto whitespace-normal"
             variant={
               emailStatus === "failed" || emailStatus === "bounced" ? "destructive" : "outline"
             }
@@ -211,25 +268,30 @@ export function InvitationList(): ReactElement {
           {invitation.emailError === "configuration" && (
             <p className="mt-1 text-xs text-muted-foreground">{t("email.configuration")}</p>
           )}
-          {invitation.canResendEmail && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={resendEmail.isPending}
-              onClick={handleResendEmail}
-            >
-              {t("email.resend")}
-            </Button>
-          )}
           {resendFailed && (
             <p role="alert" className="mt-1 text-xs text-destructive">
               {t("email.retryError")}
             </p>
           )}
         </TableCell>
-        <TableCell>
-          <InvitationWishDialog code={invitation.code} guestName={invitation.guestName} />
+        <TableCell className="text-right">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger
+              id={triggerId}
+              aria-label={actionLabel}
+              render={<Button variant="ghost" size="icon-sm" />}
+            >
+              <EllipsisIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-max">
+              <DropdownMenuItem aria-label={viewWishesLabel} onClick={handleViewWishes}>
+                {wishesT("view")}
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={resendDisabled} onClick={handleResendEmail}>
+                {t("email.resend")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </TableCell>
       </TableRow>
     );
@@ -286,19 +348,22 @@ export function InvitationList(): ReactElement {
           </span>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex w-fit items-center gap-2 text-sm text-muted-foreground">
-            <label htmlFor="invitation-page-size">{t("rowsPerPage")}</label>
-            <NativeSelect
-              id="invitation-page-size"
-              value={pageSize}
-              onChange={handlePageSizeChange}
-            >
-              {pageSizeOptions.map((option) => (
-                <NativeSelectOption key={option} value={option}>
-                  {option}
-                </NativeSelectOption>
-              ))}
-            </NativeSelect>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <InvitationFiltersDialog filters={filters} onApply={handleApplyFilters} />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <label htmlFor="invitation-page-size">{t("rowsPerPage")}</label>
+              <NativeSelect
+                id="invitation-page-size"
+                value={pageSize}
+                onChange={handlePageSizeChange}
+              >
+                {pageSizeOptions.map((option) => (
+                  <NativeSelectOption key={option} value={option}>
+                    {option}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </div>
           </div>
           {shouldShowError ? (
             <div role="alert" className="flex flex-col items-center gap-4 py-10 text-center">
@@ -314,11 +379,12 @@ export function InvitationList(): ReactElement {
                   <TableRow>
                     <TableHead>{t("guest")}</TableHead>
                     <TableHead>{t("code")}</TableHead>
+                    <TableHead>{t("address")}</TableHead>
                     <TableHead>{t("status")}</TableHead>
                     <TableHead className="text-center">{t("guestCount")}</TableHead>
                     <TableHead>{t("updatedAt")}</TableHead>
                     <TableHead>{t("email.title")}</TableHead>
-                    <TableHead>{t("wishes")}</TableHead>
+                    <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -338,7 +404,7 @@ export function InvitationList(): ReactElement {
                         colSpan={columnKeys.length}
                         className="py-12 text-center text-muted-foreground"
                       >
-                        {t("empty")}
+                        {emptyMessage}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -387,6 +453,15 @@ export function InvitationList(): ReactElement {
           )}
         </CardContent>
       </Card>
+      {wishDialog && (
+        <InvitationWishDialog
+          code={wishDialog.code}
+          guestName={wishDialog.guestName}
+          triggerId={wishDialog.triggerId}
+          open={wishDialog.open}
+          onOpenChange={handleWishDialogOpenChange}
+        />
+      )}
     </main>
   );
 }

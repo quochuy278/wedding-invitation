@@ -34,6 +34,8 @@ const webhookTransitions = {
 
 export type InvitationEmailEvent = keyof typeof webhookTransitions;
 
+const pendingTimeoutMs = 60_000;
+
 export function isInvitationEmailEvent(event: string): event is InvitationEmailEvent {
   return Object.hasOwn(webhookTransitions, event);
 }
@@ -48,15 +50,21 @@ export const invitationEmailService = {
     attemptedAt: Date | null,
     currentTime: number,
   ): InvitationEmailStatus | null {
-    if (status === "pending" && attemptedAt && currentTime - attemptedAt.getTime() > 60_000) {
+    if (
+      status === "pending" &&
+      attemptedAt &&
+      currentTime - attemptedAt.getTime() > pendingTimeoutMs
+    ) {
       return "unconfirmed";
     }
     return status;
   },
 
-  async send(code: string, allowRetry: boolean): Promise<boolean> {
+  async send(code: string, allowResend: boolean): Promise<boolean> {
     const attemptId = randomUUID();
-    const attemptedAt = now().toDate();
+    const currentTime = now();
+    const attemptedAt = currentTime.toDate();
+    const staleBefore = currentTime.subtract(pendingTimeoutMs, "millisecond").toDate();
     const active = activeInvitationWhere(code);
     const invitation = await prisma.invitation
       .update({
@@ -65,8 +73,12 @@ export const invitationEmailService = {
           AND: [
             active,
             {
-              OR: allowRetry
-                ? [{ email_status: null }, { email_status: "failed" }]
+              OR: allowResend
+                ? [
+                    { email_status: null },
+                    { email_status: { not: "pending" } },
+                    { email_status: "pending", email_attempted_at: { lt: staleBefore } },
+                  ]
                 : [{ email_status: null }],
             },
           ],

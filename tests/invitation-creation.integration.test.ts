@@ -12,6 +12,7 @@ import { BrevoEmailError, brevoService } from "@/server/features/invitations/bre
 import { InvitationCreationError } from "@/server/features/invitations/invitation.errors";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
+import { invitationEmailService } from "@/server/features/invitations/invitation-email.service";
 import { createUser, UserContactConflict } from "@/server/features/users/user.service";
 import type { AddressDto, CreateAddressInput } from "@/shared/contracts/address";
 import { UserLevel } from "@/shared/contracts/auth";
@@ -307,6 +308,52 @@ test("an email failure keeps the saved invitation and does not retry sending", a
   assert.equal((await invitationService.getByCode(created.code))?.code, created.code);
 });
 
+test("admins can resend accepted emails and recover stale attempts without overlapping sends", async (context) => {
+  const created = await invitationService.create(invitationInput("email-resend"));
+  const send = context.mock.method(brevoService, "sendInvitation", async () => "<resent-message>");
+  const listItem = async () => {
+    const list = await invitationService.list({ page: 1, pageSize: 100 });
+    return list.items.find((item) => item.code === created.code);
+  };
+  const accepted = await listItem();
+  assert.equal(accepted?.emailStatus, "accepted");
+  assert.equal(accepted?.canResendEmail, true);
+  assert.equal(await invitationEmailService.send(created.code, false), false);
+
+  let overlappingAttempt: boolean | undefined;
+  let pending: Awaited<ReturnType<typeof listItem>>;
+  send.mock.mockImplementationOnce(async () => {
+    pending = await listItem();
+    overlappingAttempt = await invitationEmailService.send(created.code, true);
+    return "<resent-message>";
+  });
+  assert.equal(await invitationEmailService.send(created.code, true), true);
+  assert.equal(pending?.emailStatus, "pending");
+  assert.equal(pending?.canResendEmail, false);
+  assert.equal(overlappingAttempt, false);
+  assert.equal(send.mock.callCount(), 1);
+
+  const staleAttemptedAt = now().subtract(2, "minute").toDate();
+  await prisma.invitation.update({
+    where: { id: created.id },
+    data: { email_status: "pending", email_attempted_at: staleAttemptedAt },
+  });
+  const stale = await listItem();
+  assert.equal(stale?.emailStatus, "unconfirmed");
+  assert.equal(stale?.canResendEmail, true);
+  assert.equal(await invitationEmailService.send(created.code, true), true);
+  assert.equal(send.mock.callCount(), 2);
+
+  const expiredAt = now().subtract(1, "minute").toDate();
+  await prisma.invitation.update({
+    where: { id: created.id },
+    data: { expires_at: expiredAt },
+  });
+  assert.equal((await listItem())?.canResendEmail, false);
+  assert.equal(await invitationEmailService.send(created.code, true), false);
+  assert.equal(send.mock.callCount(), 2);
+});
+
 test("repeated code collisions stop retrying and roll back the guest", async (context) => {
   const existing = await invitationService.create(invitationInput("collision-exhausted-existing"));
   const generate = context.mock.method(invitationCodeGenerator, "generate", () => existing.code);
@@ -479,7 +526,7 @@ test("HTTP creates a venue then invitation and renders its real address and gues
   }
 });
 
-test("HTTP tracks a failed email, allows one admin resend and applies authenticated Brevo events", {
+test("HTTP allows admin resends across delivery statuses and applies authenticated Brevo events", {
   skip: process.env.BREVO_EMAIL_E2E !== "true",
 }, async () => {
   const baseUrl = process.env.AUTH_TEST_BASE_URL;
@@ -551,11 +598,7 @@ test("HTTP tracks a failed email, allows one admin resend and applies authentica
     ).status,
     403,
   );
-  const responses = await Promise.all([
-    fetch(resendUrl, { method: "POST", headers }),
-    fetch(resendUrl, { method: "POST", headers }),
-  ]);
-  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
+  assert.equal((await fetch(resendUrl, { method: "POST", headers })).status, 200);
   assert.equal((await listItem(created.code)).emailStatus, "accepted");
   const secondAttempt = await attempt(created.id);
   assert.ok(secondAttempt.email_attempt_id);
@@ -572,9 +615,15 @@ test("HTTP tracks a failed email, allows one admin resend and applies authentica
     assert.equal((await webhook(event(secondAttempt.email_attempt_id, name))).status, 204);
   }
   assert.equal((await listItem(created.code)).emailStatus, "delivered");
+  assert.equal((await listItem(created.code)).canResendEmail, true);
+  assert.equal((await fetch(resendUrl, { method: "POST", headers })).status, 200);
+  assert.equal((await webhook(event(secondAttempt.email_attempt_id, "delivered"))).status, 204);
+  assert.equal((await listItem(created.code)).emailStatus, "accepted");
 
   const ambiguous = await create("email-ambiguous");
   assert.equal((await listItem(ambiguous.code)).emailStatus, "unconfirmed");
+  assert.equal((await listItem(ambiguous.code)).canResendEmail, true);
+  const beforeAmbiguousResend = await attempt(ambiguous.id);
   assert.equal(
     (
       await fetch(`${baseUrl}/api/invitation-email/${ambiguous.code}`, {
@@ -582,10 +631,11 @@ test("HTTP tracks a failed email, allows one admin resend and applies authentica
         headers,
       })
     ).status,
-    409,
+    200,
   );
   const ambiguousAttempt = await attempt(ambiguous.id);
   assert.ok(ambiguousAttempt.email_attempt_id);
+  assert.notEqual(ambiguousAttempt.email_attempt_id, beforeAmbiguousResend.email_attempt_id);
   assert.equal(
     (await webhook(event(ambiguousAttempt.email_attempt_id, "hard_bounce"))).status,
     204,
@@ -593,6 +643,7 @@ test("HTTP tracks a failed email, allows one admin resend and applies authentica
   const bounced = await listItem(ambiguous.code);
   assert.equal(bounced.emailStatus, "bounced");
   assert.equal(bounced.emailError, "hard_bounce");
+  assert.equal(bounced.canResendEmail, true);
 
   const browserModule = process.env.BREVO_E2E_PLAYWRIGHT;
   if (browserModule) {
@@ -613,17 +664,47 @@ test("HTTP tracks a failed email, allows one admin resend and applies authentica
       ]);
       await page.goto(`${baseUrl}/dashboard/invitations`);
       const row = page.getByRole("row").filter({ hasText: browserInvite.code });
+      await page.getByRole("columnheader", { name: "Trạng thái email", exact: true }).waitFor();
       await row.getByText("Gửi thất bại", { exact: true }).waitFor();
-      await row.getByRole("button", { name: "Gửi lại", exact: true }).click();
-      await row.getByText("Brevo đã nhận", { exact: true }).waitFor();
+      assert.equal(await row.getByRole("button", { name: "Gửi lại email" }).count(), 0);
+      const actions = row.getByRole("button", { name: /^Thao tác cho / });
+      await actions.click();
+      await page.getByRole("menuitem", { name: /^Xem lời chúc của / }).click();
+      const wishes = page.getByRole("dialog", { name: "Lời chúc của khách" });
+      await wishes.waitFor();
+      await page.keyboard.press("Escape");
+      await wishes.waitFor({ state: "hidden" });
+      assert.equal(
+        await actions.evaluate((button: HTMLElement) => button === document.activeElement),
+        true,
+      );
+      await actions.click();
+      await page.getByRole("menuitem", { name: "Gửi lại email", exact: true }).click();
+      await row.getByText("Đã gửi", { exact: true }).waitFor();
       const browserAttempt = await attempt(browserInvite.id);
       assert.ok(browserAttempt.email_attempt_id);
       assert.equal(
         (await webhook(event(browserAttempt.email_attempt_id, "delivered"))).status,
         204,
       );
+      assert.equal((await listItem(browserInvite.code)).emailStatus, "delivered");
       await page.reload();
-      await row.getByText("Máy chủ nhận đã nhận", { exact: true }).waitFor();
+      await row.getByText("Đã gửi", { exact: true }).waitFor();
+      await actions.click();
+      const resend = page.getByRole("menuitem", { name: "Gửi lại email", exact: true });
+      assert.equal(await resend.isEnabled(), true);
+      page.once("dialog", (dialog: { accept(): Promise<void> }) => dialog.accept());
+      const resendResponse = page.waitForResponse(
+        (response: { url(): string; request(): { method(): string } }) =>
+          response.url() === `${baseUrl}/api/invitation-email/${browserInvite.code}` &&
+          response.request().method() === "POST",
+      );
+      await resend.click();
+      assert.equal((await resendResponse).status(), 200);
+      assert.notEqual(
+        (await attempt(browserInvite.id)).email_attempt_id,
+        browserAttempt.email_attempt_id,
+      );
     } finally {
       await browser.close();
     }

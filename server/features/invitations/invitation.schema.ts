@@ -9,7 +9,12 @@ import {
   invitationPaginationDefaults,
   type ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
+import { calendarFormatter, parseCalendarDate, zonedDayStart } from "@/shared/utils/date";
 import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
+
+export type InvitationListCriteria = Omit<InvitationListParams, "updatedFrom" | "updatedTo"> & {
+  updatedAt?: { gte?: Date; lt?: Date };
+};
 
 export function parseCreateInvitationInput(value: unknown): ParseResult<CreateInvitationInput> {
   if (!isRecord(value))
@@ -32,7 +37,8 @@ export function parseCreateInvitationInput(value: unknown): ParseResult<CreateIn
 
 export function parseInvitationListQuery(
   query: URLSearchParams,
-): ParseResult<InvitationListParams> {
+  timeZone?: string | null,
+): ParseResult<InvitationListCriteria> {
   const errors: ApiErrorDetail[] = [];
 
   function parse(field: "page" | "pageSize", fallback: number, maximum: number): number {
@@ -52,15 +58,55 @@ export function parseInvitationListQuery(
     return value;
   }
 
+  function parseFilter(
+    field: "addressId" | "status" | "updatedFrom" | "updatedTo",
+    maximum: number,
+  ): string {
+    const values: string[] = query.getAll(field);
+    if (values.length > 1) {
+      errors.push({ field, message: "Must be provided at most once." });
+    }
+    return textField({ [field]: values[0] }, field, errors, maximum, false);
+  }
+
   const page: number = parse("page", invitationPaginationDefaults.page, Number.MAX_SAFE_INTEGER);
   const pageSize: number = parse(
     "pageSize",
     invitationPaginationDefaults.pageSize,
     invitationPaginationDefaults.maxPageSize,
   );
-  return errors.length > 0
-    ? { success: false, errors }
-    : { success: true, data: { page, pageSize } };
+  const addressId: string = parseFilter("addressId", 128);
+  const status: string = parseFilter("status", 40);
+  const updatedFrom: string = parseFilter("updatedFrom", 10);
+  const updatedTo: string = parseFilter("updatedTo", 10);
+  const fromDay = parseCalendarDate(updatedFrom);
+  const toDay = parseCalendarDate(updatedTo);
+  const hasDateFilter: boolean = Boolean(updatedFrom || updatedTo);
+  const formatter = hasDateFilter && timeZone ? calendarFormatter(timeZone) : undefined;
+
+  if (updatedFrom && !fromDay) {
+    errors.push({ field: "updatedFrom", message: "Must be a valid date in YYYY-MM-DD format." });
+  }
+  if (updatedTo && !toDay) {
+    errors.push({ field: "updatedTo", message: "Must be a valid date in YYYY-MM-DD format." });
+  }
+  if (fromDay && toDay && fromDay.isAfter(toDay)) {
+    errors.push({ field: "updatedTo", message: "Must be on or after the start date." });
+  }
+  if (hasDateFilter && !formatter) {
+    errors.push({ field: "timeZone", message: "X-Time-Zone must contain a valid IANA time zone." });
+  }
+  if (errors.length > 0) return { success: false, errors };
+
+  const data: InvitationListCriteria = { page, pageSize };
+  if (addressId) data.addressId = addressId;
+  if (status) data.status = status;
+  if (formatter && (fromDay || toDay)) {
+    data.updatedAt = {};
+    if (fromDay) data.updatedAt.gte = zonedDayStart(fromDay, formatter);
+    if (toDay) data.updatedAt.lt = zonedDayStart(toDay.add(1, "day"), formatter);
+  }
+  return { success: true, data };
 }
 
 export function validateInvitationCodeInputSchema(

@@ -12,11 +12,12 @@ function retryAddressQuery(failureCount: number, error: ResolvedApiError): boole
   return canRetry;
 }
 
-export function useAddresses() {
+export function useAddresses(enabled: boolean = true) {
   return useQuery<AddressListDto, ResolvedApiError>({
     queryKey: addressQueryKeys.all,
     queryFn: ({ signal }) => addressService.list(signal),
     retry: retryAddressQuery,
+    enabled,
   });
 }
 

@@ -7,12 +7,12 @@ import type {
   InvitationCodeValidationDto,
   InvitationDto,
   InvitationListDto,
-  InvitationListParams,
 } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
 import { InvitationCreationError } from "./invitation.errors";
 import { invitationRepository, type PublicInvitationRecord } from "./invitation.repository";
+import type { InvitationListCriteria } from "./invitation.schema";
 import { invitationEmailService, toCreatedInvitationDto } from "./invitation-email.service";
 
 export function toInvitationDto(invitation: PublicInvitationRecord): InvitationDto {
@@ -46,29 +46,32 @@ export const invitationService = {
     });
     return created;
   },
-  async list(params: InvitationListParams): Promise<InvitationListDto> {
+  async list(params: InvitationListCriteria): Promise<InvitationListDto> {
     const result = await invitationRepository.findPage(params);
-    const currentTime = now();
+    const currentTime = now().valueOf();
     return {
       ...result,
-      items: result.items.map((invitation) => ({
-        id: invitation.id,
-        code: invitation.code,
-        guestName: invitation.user.full_name,
-        phoneNumber: invitation.user.phone_number,
-        status: invitation.status,
-        guestCount: invitation.guest_count,
-        updatedAt: invitation.updated_at.toISOString(),
-        emailStatus: invitationEmailService.visibleStatus(
+      items: result.items.map((invitation) => {
+        const emailStatus = invitationEmailService.visibleStatus(
           invitation.email_status,
           invitation.email_attempted_at,
-          currentTime.valueOf(),
-        ),
-        emailError: invitation.email_error,
-        canResendEmail:
-          invitation.expires_at.getTime() > currentTime.valueOf() &&
-          (invitation.email_status === null || invitation.email_status === "failed"),
-      })),
+          currentTime,
+        );
+        return {
+          id: invitation.id,
+          code: invitation.code,
+          guestName: invitation.user.full_name,
+          phoneNumber: invitation.user.phone_number,
+          address: { name: invitation.address.name, addressText: invitation.address.address_text },
+          status: invitation.status,
+          guestCount: invitation.guest_count,
+          updatedAt: invitation.updated_at.toISOString(),
+          emailStatus,
+          emailError: invitation.email_error,
+          canResendEmail:
+            invitation.expires_at.getTime() > currentTime && emailStatus !== "pending",
+        };
+      }),
     };
   },
 

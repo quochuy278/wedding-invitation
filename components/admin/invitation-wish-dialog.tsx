@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import type { ReactElement } from "react";
 import { WishList } from "@/components/invitation/wish-list";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,25 +10,38 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useWishes } from "@/hooks/queries/use-wishes";
 
-export function InvitationWishDialog({ code, guestName }: { code: string; guestName: string }) {
+type InvitationWishDialogProps = {
+  code: string;
+  guestName: string;
+  triggerId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export function InvitationWishDialog({
+  code,
+  guestName,
+  triggerId,
+  open,
+  onOpenChange,
+}: InvitationWishDialogProps): ReactElement {
   const t = useTranslations("Admin.wishes");
   const errors = useTranslations("ApiErrors");
-  const [open, setOpen] = useState(false);
   const query = useWishes(code, open);
 
+  function getFinalFocus(): HTMLElement | null {
+    return document.getElementById(triggerId);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={<Button variant="ghost" size="sm" />}
-        aria-label={t("viewFor", { name: guestName })}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg"
+        finalFocus={getFinalFocus}
       >
-        {t("view")}
-      </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="pr-6 text-xl text-wedding-wine">{t("title")}</DialogTitle>
           <DialogDescription>{t("from", { name: guestName, code })}</DialogDescription>

@@ -19,7 +19,8 @@ import type {
 
 export const invitationQueryKeys = {
   all: ["invitations"] as const,
-  list: (params: InvitationListParams) => [...invitationQueryKeys.all, "list", params] as const,
+  list: (params: InvitationListParams, timeZone?: string) =>
+    [...invitationQueryKeys.all, "list", params, timeZone] as const,
 };
 
 export function useCreateInvitation() {
@@ -34,10 +35,10 @@ export function useCreateInvitation() {
   });
 }
 
-export function useInvitations(params: InvitationListParams) {
+export function useInvitations(params: InvitationListParams, timeZone?: string) {
   return useQuery<InvitationListDto, ResolvedApiError>({
-    queryKey: invitationQueryKeys.list(params),
-    queryFn: ({ signal }) => invitationService.list(params, signal),
+    queryKey: invitationQueryKeys.list(params, timeZone),
+    queryFn: ({ signal }) => invitationService.list(params, signal, timeZone),
     staleTime: 0,
     retry: (failureCount, error) =>
       error.status !== 401 && error.status !== 403 && failureCount < 1,

@@ -38,9 +38,15 @@ export const invitationPaginationDefaults = {
   maxPageSize: 100,
 } as const;
 
+export const invitationTimeZoneHeader = "X-Time-Zone";
+
 export type InvitationListParams = {
   page: number;
   pageSize: number;
+  addressId?: string;
+  status?: string;
+  updatedFrom?: string;
+  updatedTo?: string;
 };
 
 export type InvitationListItemDto = {
@@ -48,6 +54,7 @@ export type InvitationListItemDto = {
   code: string;
   guestName: string;
   phoneNumber: string | null;
+  address: Pick<AddressDto, "name" | "addressText">;
   status: string;
   guestCount: number;
   updatedAt: string;
@@ -66,7 +73,7 @@ export type InvitationEmailStatus =
 
 export type InvitationListDto = {
   items: InvitationListItemDto[];
-  pagination: InvitationListParams & {
+  pagination: Pick<InvitationListParams, "page" | "pageSize"> & {
     totalItems: number;
     totalPages: number;
   };

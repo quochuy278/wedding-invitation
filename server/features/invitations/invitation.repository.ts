@@ -4,14 +4,11 @@ import { type Invitation, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { isRecord } from "@/server/shared/validation/schema";
 import { UserLevel } from "@/shared/contracts/auth";
-import type {
-  CreateInvitationInput,
-  InvitationListDto,
-  InvitationListParams,
-} from "@/shared/contracts/invitation";
+import type { CreateInvitationInput, InvitationListDto } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { isConfirmedInvitationStatus } from "@/shared/utils/invitation-status";
 import { InvitationCreationError } from "./invitation.errors";
+import type { InvitationListCriteria } from "./invitation.schema";
 import { invitationCodeGenerator } from "./invitation-code";
 
 const adminInvitationSelect = {
@@ -25,6 +22,7 @@ const adminInvitationSelect = {
   email_attempted_at: true,
   expires_at: true,
   user: { select: { full_name: true, phone_number: true } },
+  address: { select: { name: true, address_text: true } },
 } as const satisfies Prisma.InvitationSelect;
 
 export type InvitationListRecord = Prisma.InvitationGetPayload<{
@@ -74,7 +72,7 @@ export type CreatedInvitationRecord = Prisma.InvitationGetPayload<{
 }>;
 type InvitationRepository = {
   create(input: CreateInvitationInput): Promise<CreatedInvitationRecord>;
-  findPage(params: InvitationListParams): Promise<InvitationListResult>;
+  findPage(params: InvitationListCriteria): Promise<InvitationListResult>;
   findActiveIdByCode(code: string): Promise<InvitationIdRecord | null>;
   findActiveByCode(code: string): Promise<PublicInvitationRecord | null>;
   checkIn(invitation: {
@@ -182,8 +180,14 @@ export const invitationRepository: InvitationRepository = {
     }
     throw new Error("Could not allocate a unique invitation code.");
   },
-  findPage(params: InvitationListParams): Promise<InvitationListResult> {
-    const where: Prisma.InvitationWhereInput = { deleted_at: null, user: { deleted_at: null } };
+  findPage(params: InvitationListCriteria): Promise<InvitationListResult> {
+    const where: Prisma.InvitationWhereInput = {
+      deleted_at: null,
+      user: { deleted_at: null },
+    };
+    if (params.addressId) where.address_id = params.addressId;
+    if (params.status) where.status = params.status;
+    if (params.updatedAt) where.updated_at = params.updatedAt;
     // Count, summary and rows share a snapshot, even if invitations change during the request.
     return prisma.$transaction(
       async (transaction): Promise<InvitationListResult> => {

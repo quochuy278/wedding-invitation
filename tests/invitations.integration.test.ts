@@ -7,6 +7,7 @@ import type { Invitation, User } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { hashPassword } from "@/server/features/auth/password";
 import { issueTokens } from "@/server/features/auth/token";
+import { parseInvitationListQuery } from "@/server/features/invitations/invitation.schema";
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import { UserLevel } from "@/shared/contracts/auth";
@@ -17,6 +18,11 @@ import { generateId } from "@/shared/utils/id";
 const userIds: string[] = [];
 const addressIds: string[] = [];
 const invitations: Invitation[] = [];
+const filterUpdatedAt: Partial<Record<number, string>> = {
+  2: "2026-03-29T09:00:00Z",
+  4: "2026-03-28T23:00:00Z",
+  5: "2026-03-29T22:00:00Z",
+};
 const password: string = randomBytes(32).toString("base64url");
 let admin: User;
 let guest: User;
@@ -33,6 +39,14 @@ before(async () => {
     },
   });
   addressIds.push(address.id);
+  const secondAddress = await prisma.address.create({
+    data: {
+      name: "Second invitation list venue",
+      address_text: "Second temporary fixture",
+      event_at: now().add(1, "day").toDate(),
+    },
+  });
+  addressIds.push(secondAddress.id);
   const passwordHash: string = await hashPassword(password);
   admin = await prisma.user.create({
     data: {
@@ -64,7 +78,7 @@ before(async () => {
       await prisma.invitation.create({
         data: {
           user_id: user.id,
-          address_id: address.id,
+          address_id: index === 0 ? secondAddress.id : address.id,
           code: invitationCodeGenerator.generate(),
           status:
             index < 2 || index >= 6
@@ -76,6 +90,7 @@ before(async () => {
                   : "pending",
           guest_count: index < 2 ? index + 2 : index >= 6 ? 20 : 1,
           created_at: createdAt,
+          updated_at: filterUpdatedAt[index],
           expires_at:
             index === 0 ? now().subtract(1, "day").toDate() : now().add(1, "day").toDate(),
           deleted_at: index === 6 ? now().toDate() : null,
@@ -148,6 +163,7 @@ test("list pagination uses stable order, global summary and excludes deleted rec
       "code",
       "guestName",
       "phoneNumber",
+      "address",
       "status",
       "guestCount",
       "updatedAt",
@@ -161,11 +177,52 @@ test("list pagination uses stable order, global summary and excludes deleted rec
   assert.equal(first.items.find((item) => item.id === invitations[3].id)?.status, "custom-status");
 });
 
+test("filtering by venue applies before pagination and scopes the summary", async () => {
+  const addressId: string = invitations[0].address_id;
+  const result = await invitationService.list({ page: 2, pageSize: 1, addressId });
+
+  assert.deepEqual(result.pagination, { page: 1, pageSize: 1, totalItems: 1, totalPages: 1 });
+  assert.deepEqual(result.summary, {
+    totalInvitations: 1,
+    acceptedInvitations: 1,
+    acceptedGuests: 2,
+    pendingInvitations: 0,
+  });
+  assert.equal(result.items[0].id, invitations[0].id);
+  assert.deepEqual(result.items[0].address, {
+    name: "Second invitation list venue",
+    addressText: "Second temporary fixture",
+  });
+});
+
 test("pages beyond the end clamp before computing the database offset", async () => {
   const beyond = await invitationService.list({ page: Number.MAX_SAFE_INTEGER, pageSize: 5 });
   const last = await invitationService.list({ page: beyond.pagination.totalPages, pageSize: 5 });
   assert.deepEqual(beyond, last);
   assert.ok(last.items.length >= 1 && last.items.length <= 5);
+});
+
+test("status, venue and local date filters combine before pagination and summary", async () => {
+  const query = new URLSearchParams({
+    page: "2",
+    pageSize: "1",
+    addressId: invitations[4].address_id,
+    status: "pending",
+    updatedFrom: "2026-03-29",
+    updatedTo: "2026-03-29",
+  });
+  const parsed = parseInvitationListQuery(query, "Europe/Berlin");
+  assert.ok(parsed.success);
+  const result = await invitationService.list(parsed.data);
+
+  assert.deepEqual(result.pagination, { page: 1, pageSize: 1, totalItems: 1, totalPages: 1 });
+  assert.deepEqual(result.summary, {
+    totalInvitations: 1,
+    acceptedInvitations: 0,
+    acceptedGuests: 0,
+    pendingInvitations: 1,
+  });
+  assert.equal(result.items[0].id, invitations[4].id);
 });
 
 test("HTTP list enforces admin access, validates query and returns private metadata", {

@@ -1,14 +1,15 @@
 import { apiClient } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { guestApiHeaders } from "@/shared/contracts/guest-api";
-import type {
-  CreatedInvitationDto,
-  CreateInvitationInput,
-  InvitationCodeValidationDto,
-  InvitationDto,
-  InvitationListDto,
-  InvitationListParams,
-  ValidateInvitationCodeInput,
+import {
+  type CreatedInvitationDto,
+  type CreateInvitationInput,
+  type InvitationCodeValidationDto,
+  type InvitationDto,
+  type InvitationListDto,
+  type InvitationListParams,
+  invitationTimeZoneHeader,
+  type ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
 
 export const invitationService = {
@@ -16,10 +17,16 @@ export const invitationService = {
     const response = await apiClient.post<ApiResponse<CreatedInvitationDto>>("/invitations", input);
     return response.data.data;
   },
-  async list(params: InvitationListParams, signal?: AbortSignal): Promise<InvitationListDto> {
+  async list(
+    params: InvitationListParams,
+    signal?: AbortSignal,
+    timeZone?: string,
+  ): Promise<InvitationListDto> {
+    const headers = timeZone ? { [invitationTimeZoneHeader]: timeZone } : undefined;
     const response = await apiClient.get<ApiResponse<InvitationListDto>>("/invitations", {
       params,
       signal,
+      headers,
     });
     return response.data.data;
   },

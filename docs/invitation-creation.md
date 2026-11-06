@@ -4,9 +4,10 @@
 
 Creating an invitation saves it before attempting delivery through Brevo. The admin list
 shows whether Brevo accepted the request, it failed, or its outcome is unconfirmed.
-Use **Gửi lại** for a failed send or a legacy invitation after checking its history.
-An unconfirmed send may already have reached Brevo, so the dashboard blocks retries
-while that outcome remains unknown.
+The action menu always shows **Gửi lại email**. Admins can resend while the
+invitation is active and the previous attempt has finished. A send still marked as
+pending after one minute becomes unconfirmed and can be retried. The dashboard asks
+for confirmation when the guest may already have received the email.
 
 Configure a transactional, single-event Brevo webhook at `/api/webhooks/brevo`.
 Set bearer authentication to the same value as the server-only
@@ -78,7 +79,7 @@ Valid invitation pages offer “Thêm vào lịch” beside the venue map button
 
 The home form displays six code slots and opens the invitation by its code. Typing and pasting lowercase ASCII letters automatically uppercases them; symbols, non-ASCII characters and overlong pastes are rejected. The validation API requires the same six-character format and normalizes lowercase ASCII and surrounding whitespace before lookup.
 
-This version stores the guest email and invitation only. It does not send email, create an email queue, or mark anything as sent. The UI states this explicitly. Prototype guest-group and maximum-guest controls were removed because the existing model has no corresponding fields; `guest_count` is an attendance count, not an invitation capacity.
+Prototype guest-group and maximum-guest controls were removed because the existing model has no corresponding fields; `guest_count` is an attendance count, not an invitation capacity.
 
 RSVP and wishes submissions use the persisted flows described in [guest responses](guest-responses.md).
 
