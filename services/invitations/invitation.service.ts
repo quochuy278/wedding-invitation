@@ -9,6 +9,7 @@ import {
   type InvitationListDto,
   type InvitationListParams,
   invitationTimeZoneHeader,
+  type UpdateInvitationNoteInput,
   type ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
 
@@ -32,6 +33,9 @@ export const invitationService = {
   },
   async resendEmail(code: string): Promise<void> {
     await apiClient.post(`/invitation-email/${encodeURIComponent(code)}`);
+  },
+  async updateAdminNote(code: string, input: UpdateInvitationNoteInput): Promise<void> {
+    await apiClient.patch(`/invitation-notes/${encodeURIComponent(code)}`, input);
   },
 
   async validateCode(input: ValidateInvitationCodeInput): Promise<InvitationCodeValidationDto> {

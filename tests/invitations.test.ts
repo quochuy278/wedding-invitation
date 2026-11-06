@@ -4,11 +4,16 @@ import type { AxiosAdapter } from "axios";
 import { apiClient } from "@/lib/api/client";
 import {
   parseInvitationListQuery,
+  parseUpdateInvitationNoteInput,
   validateInvitationCodeInputSchema,
 } from "@/server/features/invitations/invitation.schema";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import { invitationService as clientInvitations } from "@/services/invitations/invitation.service";
-import { type InvitationListParams, invitationTimeZoneHeader } from "@/shared/contracts/invitation";
+import {
+  type InvitationListParams,
+  invitationAdminNoteMaxLength,
+  invitationTimeZoneHeader,
+} from "@/shared/contracts/invitation";
 import { isInvitationCodeInput, normalizeInvitationCode } from "@/shared/utils/invitation-code";
 
 test("invitation codes contain exactly six uppercase ASCII letters or digits", () => {
@@ -78,6 +83,24 @@ test("invitation list accepts one optional address filter", () => {
     const result = parseInvitationListQuery(new URLSearchParams(query));
     assert.equal(result.success, false);
     if (!result.success) assert.equal(result.errors[0].field, "addressId");
+  }
+});
+
+test("an admin note accepts trimmed text or null and rejects invalid updates", () => {
+  assert.deepEqual(parseUpdateInvitationNoteInput({ adminNote: "  First line\nSecond line  " }), {
+    success: true,
+    data: { adminNote: "First line\nSecond line" },
+  });
+  for (const adminNote of [null, "   "]) {
+    assert.deepEqual(parseUpdateInvitationNoteInput({ adminNote }), {
+      success: true,
+      data: { adminNote: null },
+    });
+  }
+  for (const adminNote of [undefined, 1, "note\0", "a".repeat(invitationAdminNoteMaxLength + 1)]) {
+    const result = parseUpdateInvitationNoteInput({ adminNote });
+    assert.equal(result.success, false);
+    if (!result.success) assert.equal(result.errors[0].field, "adminNote");
   }
 });
 

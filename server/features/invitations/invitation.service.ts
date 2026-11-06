@@ -7,6 +7,7 @@ import type {
   InvitationCodeValidationDto,
   InvitationDto,
   InvitationListDto,
+  UpdateInvitationNoteInput,
 } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invitation-code";
@@ -63,6 +64,7 @@ export const invitationService = {
           guestName: invitation.user.full_name,
           phoneNumber: invitation.user.phone_number,
           address: { name: invitation.address.name, addressText: invitation.address.address_text },
+          adminNote: invitation.admin_note,
           status: invitation.status,
           guestCount: invitation.guest_count,
           updatedAt: invitation.updated_at.toISOString(),
@@ -73,6 +75,12 @@ export const invitationService = {
         };
       }),
     };
+  },
+
+  updateAdminNote(code: string, input: UpdateInvitationNoteInput): Promise<boolean> {
+    const normalizedCode: string = normalizeInvitationCode(code);
+    if (!isInvitationCode(normalizedCode)) return Promise.resolve(false);
+    return invitationRepository.updateAdminNote(normalizedCode, input.adminNote);
   },
 
   async validateCode(code: string): Promise<InvitationCodeValidationDto> {

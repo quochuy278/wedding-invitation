@@ -203,6 +203,16 @@
       "invalidDateRange": "Ngày kết thúc phải từ ngày bắt đầu trở đi.",
       "actions": "Thao tác",
       "actionsFor": "Thao tác cho {name}",
+      "note": {
+        "title": "Ghi chú",
+        "add": "Thêm ghi chú",
+        "edit": "Sửa ghi chú",
+        "description": "Ghi chú nội bộ cho {name} · Mã thiệp {code}",
+        "placeholder": "Nhập ghi chú cho thiệp này…",
+        "hint": "Chỉ admin thấy. Tối đa {maximum} ký tự. Để trống để xóa ghi chú.",
+        "save": "Lưu ghi chú",
+        "saving": "Đang lưu…"
+      },
       "loading": "Đang tải danh sách…",
       "empty": "Chưa có thiệp mời nào.",
       "emptyFiltered": "Không có thiệp mời phù hợp với bộ lọc.",

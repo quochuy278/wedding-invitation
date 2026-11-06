@@ -3,6 +3,7 @@ import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { after, before, test } from "node:test";
+import { GET as getPublicInvitation } from "@/app/api/invitations/[code]/route";
 import type { Invitation, User } from "@/generated/prisma/client";
 import { prisma } from "@/server/db/prisma";
 import { hashPassword } from "@/server/features/auth/password";
@@ -11,6 +12,7 @@ import { parseInvitationListQuery } from "@/server/features/invitations/invitati
 import { invitationService } from "@/server/features/invitations/invitation.service";
 import { invitationCodeGenerator } from "@/server/features/invitations/invitation-code";
 import { UserLevel } from "@/shared/contracts/auth";
+import { guestApiHeaders } from "@/shared/contracts/guest-api";
 import type { InvitationListDto } from "@/shared/contracts/invitation";
 import { now } from "@/shared/utils/date";
 import { generateId } from "@/shared/utils/id";
@@ -164,6 +166,7 @@ test("list pagination uses stable order, global summary and excludes deleted rec
       "guestName",
       "phoneNumber",
       "address",
+      "adminNote",
       "status",
       "guestCount",
       "updatedAt",
@@ -173,6 +176,7 @@ test("list pagination uses stable order, global summary and excludes deleted rec
     ].sort(),
   );
   assert.equal(expired.phoneNumber, null);
+  assert.equal(expired.adminNote, null);
   assert.equal(expired.updatedAt, invitations[0].updated_at.toISOString());
   assert.equal(first.items.find((item) => item.id === invitations[3].id)?.status, "custom-status");
 });
@@ -223,6 +227,32 @@ test("status, venue and local date filters combine before pagination and summary
     pendingInvitations: 1,
   });
   assert.equal(result.items[0].id, invitations[4].id);
+});
+
+test("the admin can save and clear a note without exposing it in the guest response", async () => {
+  const invitation: Invitation = invitations[1];
+  const adminNote: string = "Internal note\nSecond line";
+  const params = { page: 1, pageSize: 20, addressId: invitation.address_id };
+
+  assert.equal(await invitationService.updateAdminNote(invitation.code, { adminNote }), true);
+  const adminList = await invitationService.list(params);
+  assert.equal(adminList.items.find((item) => item.id === invitation.id)?.adminNote, adminNote);
+
+  const publicUrl: string = `https://wedding.example/api/invitations/${invitation.code}`;
+  const publicRequest = new Request(publicUrl, { headers: guestApiHeaders });
+  const publicResponse = await getPublicInvitation(publicRequest, {
+    params: Promise.resolve({ code: invitation.code }),
+  });
+  assert.equal(publicResponse.status, 200);
+  const { data } = await publicResponse.json();
+  assert.equal(Object.hasOwn(data, "adminNote"), false);
+  assert.equal(JSON.stringify(data).includes("Internal note"), false);
+
+  assert.equal(await invitationService.updateAdminNote(invitation.code, { adminNote: null }), true);
+  const cleared = await invitationService.list(params);
+  assert.equal(cleared.items.find((item) => item.id === invitation.id)?.adminNote, null);
+  assert.equal(await invitationService.updateAdminNote(invitations[6].code, { adminNote }), false);
+  assert.equal(await invitationService.updateAdminNote(invitations[7].code, { adminNote }), false);
 });
 
 test("HTTP list enforces admin access, validates query and returns private metadata", {
@@ -278,13 +308,33 @@ test("HTTP list enforces admin access, validates query and returns private metad
     .find((cookie) => cookie.split("=")[0].endsWith("access_token"))
     ?.split("=")[0];
   assert.ok(accessCookieName);
+  const guestHeaders = { Cookie: `${accessCookieName}=${guestTokens.accessToken}` };
+  assert.equal((await fetch(endpoint, { headers: guestHeaders })).status, 401);
+  const noteEndpoint = `${baseUrl}/api/invitation-notes/${invitations[1].code}`;
+  const noteWrite = { method: "PATCH", body: JSON.stringify({ adminNote: "Admin-only note" }) };
+  const origin: string = process.env.AUTH_ORIGIN ?? new URL(baseUrl).origin;
+  const noteHeaders = { Origin: origin, "Content-Type": "application/json" };
+  const guestWrite = await fetch(noteEndpoint, {
+    ...noteWrite,
+    headers: { ...guestHeaders, ...noteHeaders },
+  });
+  assert.equal(guestWrite.status, 401);
+  const crossOriginWrite = await fetch(noteEndpoint, {
+    ...noteWrite,
+    headers: { ...headers, ...noteHeaders, Origin: "https://untrusted.example.invalid" },
+  });
+  assert.equal(crossOriginWrite.status, 403);
+  const adminWrite = await fetch(noteEndpoint, {
+    ...noteWrite,
+    headers: { ...headers, ...noteHeaders },
+  });
+  assert.equal(adminWrite.status, 204);
+  assert.equal(adminWrite.headers.get("cache-control"), "no-store");
   assert.equal(
-    (
-      await fetch(endpoint, {
-        headers: { Cookie: `${accessCookieName}=${guestTokens.accessToken}` },
-      })
-    ).status,
-    401,
+    (await invitationService.list({ page: 1, pageSize: 100 })).items.find(
+      (item) => item.code === invitations[1].code,
+    )?.adminNote,
+    "Admin-only note",
   );
   await fetch(`${baseUrl}/api/auth/logout`, {
     method: "POST",

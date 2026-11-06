@@ -39,6 +39,7 @@ export const invitationPaginationDefaults = {
 } as const;
 
 export const invitationTimeZoneHeader = "X-Time-Zone";
+export const invitationAdminNoteMaxLength = 2000;
 
 export type InvitationListParams = {
   page: number;
@@ -55,6 +56,7 @@ export type InvitationListItemDto = {
   guestName: string;
   phoneNumber: string | null;
   address: Pick<AddressDto, "name" | "addressText">;
+  adminNote: string | null;
   status: string;
   guestCount: number;
   updatedAt: string;
@@ -62,6 +64,8 @@ export type InvitationListItemDto = {
   emailError: string | null;
   canResendEmail: boolean;
 };
+
+export type UpdateInvitationNoteInput = { adminNote: string | null };
 
 export type InvitationEmailStatus =
   | "pending"

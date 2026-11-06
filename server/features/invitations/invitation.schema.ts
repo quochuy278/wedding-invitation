@@ -6,7 +6,9 @@ import { isRecord, type ParseResult } from "@/server/shared/validation/schema";
 import {
   type CreateInvitationInput,
   type InvitationListParams,
+  invitationAdminNoteMaxLength,
   invitationPaginationDefaults,
+  type UpdateInvitationNoteInput,
   type ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
 import { calendarFormatter, parseCalendarDate, zonedDayStart } from "@/shared/utils/date";
@@ -15,6 +17,22 @@ import { isInvitationCode, normalizeInvitationCode } from "@/shared/utils/invita
 export type InvitationListCriteria = Omit<InvitationListParams, "updatedFrom" | "updatedTo"> & {
   updatedAt?: { gte?: Date; lt?: Date };
 };
+
+export function parseUpdateInvitationNoteInput(
+  value: unknown,
+): ParseResult<UpdateInvitationNoteInput> {
+  if (!isRecord(value) || (value.adminNote !== null && typeof value.adminNote !== "string")) {
+    return { success: false, errors: [{ field: "adminNote", message: "Must be text or null." }] };
+  }
+
+  const errors: ApiErrorDetail[] = [];
+  const adminNote: string | null =
+    textField(value, "adminNote", errors, invitationAdminNoteMaxLength, false) || null;
+  if (adminNote?.includes("\0")) {
+    errors.push({ field: "adminNote", message: "Must not contain null characters." });
+  }
+  return errors.length > 0 ? { success: false, errors } : { success: true, data: { adminNote } };
+}
 
 export function parseCreateInvitationInput(value: unknown): ParseResult<CreateInvitationInput> {
   if (!isRecord(value))

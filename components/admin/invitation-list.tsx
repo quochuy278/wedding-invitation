@@ -21,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   Pagination,
@@ -45,6 +46,7 @@ import {
 } from "@/shared/contracts/invitation";
 import { formatLocalDate } from "@/shared/utils/date";
 import { type InvitationFilters, InvitationFiltersDialog } from "./invitation-filters-dialog";
+import { InvitationNoteDialog } from "./invitation-note-dialog";
 import { InvitationWishDialog } from "./invitation-wish-dialog";
 
 const pageSizeOptions = [5, 10, invitationPaginationDefaults.pageSize, 50] as const;
@@ -57,6 +59,7 @@ const columnKeys = [
   "guestCount",
   "updatedAt",
   "email",
+  "note",
   "actions",
 ] as const;
 
@@ -65,6 +68,12 @@ type WishDialogSelection = {
   guestName: string;
   triggerId: string;
   open: boolean;
+};
+
+type NoteDialogSelection = Pick<InvitationListItemDto, "code" | "guestName" | "adminNote"> & {
+  open: boolean;
+  revision: number;
+  finalFocus: () => HTMLElement | null;
 };
 
 function visiblePageNumbers(page: number, totalPages: number): number[] {
@@ -87,6 +96,7 @@ export function InvitationList(): ReactElement {
   const [pageSize, setPageSize] = useState<number>(invitationPaginationDefaults.pageSize);
   const [filters, setFilters] = useState<InvitationFilters>({});
   const [wishDialog, setWishDialog] = useState<WishDialogSelection | null>(null);
+  const [noteDialog, setNoteDialog] = useState<NoteDialogSelection | null>(null);
   const { timeZone, ...listFilters } = filters;
   const queryParams: InvitationListParams = {
     ...listFilters,
@@ -166,6 +176,10 @@ export function InvitationList(): ReactElement {
     setWishDialog((selection) => selection && { ...selection, open });
   }
 
+  function handleNoteDialogOpenChange(open: boolean): void {
+    setNoteDialog((selection) => selection && { ...selection, open });
+  }
+
   function renderStatus(status: string): ReactElement {
     if (status === "attended") {
       return <Badge className="bg-sky-100 text-sky-800">{t("attended")}</Badge>;
@@ -221,8 +235,21 @@ export function InvitationList(): ReactElement {
     const resendDisabled = !invitation.canResendEmail || resendEmail.isPending;
     const resendFailed = resendEmail.isError && resendEmail.variables === invitation.code;
     const triggerId: string = `invitation-actions-${invitation.id}`;
+    const noteTriggerId: string = `invitation-note-${invitation.id}`;
     const actionLabel: string = t("actionsFor", { name: invitation.guestName });
     const viewWishesLabel: string = wishesT("viewFor", { name: invitation.guestName });
+    const noteActionLabel: string = invitation.adminNote ? t("note.edit") : t("note.add");
+
+    function openNoteDialog(sourceId: string): void {
+      setNoteDialog((previous) => ({
+        code: invitation.code,
+        guestName: invitation.guestName,
+        adminNote: invitation.adminNote,
+        open: true,
+        revision: (previous?.revision ?? 0) + 1,
+        finalFocus: () => document.getElementById(sourceId) ?? document.getElementById(triggerId),
+      }));
+    }
 
     function handleViewWishes(): void {
       setWishDialog({
@@ -274,6 +301,32 @@ export function InvitationList(): ReactElement {
             </p>
           )}
         </TableCell>
+        <TableCell className="min-w-36 max-w-56 whitespace-normal">
+          {invitation.adminNote ? (
+            <HoverCard>
+              <HoverCardTrigger
+                id={noteTriggerId}
+                render={
+                  <button
+                    type="button"
+                    className="line-clamp-2 cursor-pointer rounded-sm text-left whitespace-pre-line wrap-anywhere hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                    onClick={() => openNoteDialog(noteTriggerId)}
+                  />
+                }
+              >
+                {invitation.adminNote}
+              </HoverCardTrigger>
+              <HoverCardContent
+                align="start"
+                className="max-h-[50dvh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto whitespace-pre-wrap wrap-anywhere"
+              >
+                {invitation.adminNote}
+              </HoverCardContent>
+            </HoverCard>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
         <TableCell className="text-right">
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger
@@ -286,6 +339,9 @@ export function InvitationList(): ReactElement {
             <DropdownMenuContent align="end" className="w-max">
               <DropdownMenuItem aria-label={viewWishesLabel} onClick={handleViewWishes}>
                 {wishesT("view")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openNoteDialog(triggerId)}>
+                {noteActionLabel}
               </DropdownMenuItem>
               <DropdownMenuItem disabled={resendDisabled} onClick={handleResendEmail}>
                 {t("email.resend")}
@@ -384,6 +440,7 @@ export function InvitationList(): ReactElement {
                     <TableHead className="text-center">{t("guestCount")}</TableHead>
                     <TableHead>{t("updatedAt")}</TableHead>
                     <TableHead>{t("email.title")}</TableHead>
+                    <TableHead>{t("note.title")}</TableHead>
                     <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -460,6 +517,17 @@ export function InvitationList(): ReactElement {
           triggerId={wishDialog.triggerId}
           open={wishDialog.open}
           onOpenChange={handleWishDialogOpenChange}
+        />
+      )}
+      {noteDialog && (
+        <InvitationNoteDialog
+          key={noteDialog.revision}
+          code={noteDialog.code}
+          guestName={noteDialog.guestName}
+          adminNote={noteDialog.adminNote}
+          open={noteDialog.open}
+          onOpenChange={handleNoteDialogOpenChange}
+          finalFocus={noteDialog.finalFocus}
         />
       )}
     </main>

@@ -16,6 +16,7 @@ const adminInvitationSelect = {
   code: true,
   status: true,
   guest_count: true,
+  admin_note: true,
   updated_at: true,
   email_status: true,
   email_error: true,
@@ -24,6 +25,11 @@ const adminInvitationSelect = {
   user: { select: { full_name: true, phone_number: true } },
   address: { select: { name: true, address_text: true } },
 } as const satisfies Prisma.InvitationSelect;
+
+const adminInvitationWhere = {
+  deleted_at: null,
+  user: { deleted_at: null },
+} satisfies Prisma.InvitationWhereInput;
 
 export type InvitationListRecord = Prisma.InvitationGetPayload<{
   select: typeof adminInvitationSelect;
@@ -73,6 +79,7 @@ export type CreatedInvitationRecord = Prisma.InvitationGetPayload<{
 type InvitationRepository = {
   create(input: CreateInvitationInput): Promise<CreatedInvitationRecord>;
   findPage(params: InvitationListCriteria): Promise<InvitationListResult>;
+  updateAdminNote(code: string, adminNote: string | null): Promise<boolean>;
   findActiveIdByCode(code: string): Promise<InvitationIdRecord | null>;
   findActiveByCode(code: string): Promise<PublicInvitationRecord | null>;
   checkIn(invitation: {
@@ -181,10 +188,7 @@ export const invitationRepository: InvitationRepository = {
     throw new Error("Could not allocate a unique invitation code.");
   },
   findPage(params: InvitationListCriteria): Promise<InvitationListResult> {
-    const where: Prisma.InvitationWhereInput = {
-      deleted_at: null,
-      user: { deleted_at: null },
-    };
+    const where: Prisma.InvitationWhereInput = { ...adminInvitationWhere };
     if (params.addressId) where.address_id = params.addressId;
     if (params.status) where.status = params.status;
     if (params.updatedAt) where.updated_at = params.updatedAt;
@@ -225,6 +229,14 @@ export const invitationRepository: InvitationRepository = {
       },
       { isolationLevel: "RepeatableRead" },
     );
+  },
+
+  async updateAdminNote(code: string, adminNote: string | null): Promise<boolean> {
+    const result = await prisma.invitation.updateMany({
+      where: { ...adminInvitationWhere, code },
+      data: { admin_note: adminNote },
+    });
+    return result.count === 1;
   },
 
   checkIn(invitation) {

@@ -14,6 +14,7 @@ import type {
   InvitationDto,
   InvitationListDto,
   InvitationListParams,
+  UpdateInvitationNoteInput,
   ValidateInvitationCodeInput,
 } from "@/shared/contracts/invitation";
 
@@ -50,6 +51,20 @@ export function useResendInvitationEmail(): UseMutationResult<void, ResolvedApiE
   return useMutation({
     mutationFn: invitationService.resendEmail,
     onSettled: () => queryClient.invalidateQueries({ queryKey: invitationQueryKeys.all }),
+  });
+}
+
+type InvitationNoteMutationInput = UpdateInvitationNoteInput & { code: string };
+
+export function useUpdateInvitationNote(): UseMutationResult<
+  void,
+  ResolvedApiError,
+  InvitationNoteMutationInput
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, adminNote }) => invitationService.updateAdminNote(code, { adminNote }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: invitationQueryKeys.all }),
   });
 }
 

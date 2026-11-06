@@ -80,6 +80,7 @@ model Invitation {
   status             String
   guest_count        Int                    @default(1)
   personal_message   String?
+  admin_note         String?
   email_status       InvitationEmailStatus?
   email_attempt_id   String?                @unique @db.Uuid
   email_attempted_at DateTime?              @db.Timestamptz(3)
