@@ -167,6 +167,7 @@
       "copied": "Đã sao chép",
       "copyFailed": "Chưa thể sao chép. Bạn có thể mở thiệp và sao chép đường dẫn.",
       "contactConflict": "Email hoặc số điện thoại này đã thuộc về một khách / tài khoản khác.",
+      "duplicateInvitation": "Khách này đã có thiệp mời cho địa điểm đã chọn.",
       "duplicateContact": "Thông tin liên hệ này đã được sử dụng.",
       "invalidDeadline": "Nhập ngày giờ hợp lệ trong tương lai.",
       "invalidAddress": "Địa điểm không còn tồn tại. Vui lòng chọn lại.",

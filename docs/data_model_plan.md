@@ -1,11 +1,11 @@
 # Wedding invitation data model
 
-Created: 2026-10-05. Scope: backend data structures using Prisma and PostgreSQL. This is a design document; it does not change the schema or run a migration.
+Created: 2026-10-05. Relationship requirement updated: 2026-11-07. Scope: backend data structures using Prisma and PostgreSQL. This is a design document; it does not change the schema or run a migration.
 
 ## 1. Confirmed requirements
 
 - The app serves one wedding and has a small scope.
-- Each invitation belongs to one guest. A guest can have only one invitation.
+- Each invitation belongs to one guest. A guest can have one invitation per venue.
 - A `user` is an invited guest, not an admin account. An admin enters the guest details when sending an invitation; guests do not sign in.
 - An invitation has an automatically generated CUID string `id` and an automatically generated unique `code`. Admins cannot change these identifiers.
 - Guests find their invitation by `code`.
@@ -32,13 +32,13 @@ The detailed field names, contact and guest-count nullability, native types, ind
 
 ```mermaid
 erDiagram
-    users ||--o| invitations : user_id
+    users ||--o{ invitations : user_id
     addresses ||--o{ invitations : address_id
     invitations ||--o{ wishes : invitation_id
 ```
 
 - Every invitation must belong to one user and one address.
-- `invitations.user_id` has a unique constraint, so a user can have at most one invitation, including soft-deleted invitations.
+- `invitations` has a unique constraint on `(user_id, address_id)`, so a user can have at most one invitation per venue, including soft-deleted invitations.
 - Many invitations can reference one address. There is no invitation-address join table because each invitation selects only one address.
 - An invitation can have zero or more wishes; every wish must belong to one invitation.
 - The diagram allows a user to exist without an invitation while data is being entered. A foreign key plus a unique constraint cannot ensure that every user always has an invitation.
@@ -68,7 +68,7 @@ All timestamps should use `DateTime` with the PostgreSQL native type `timestampt
 
 `phone_number` and `email` should be nullable so neither contact method is required. Names, phone numbers, and email addresses are not unique because they are not confirmed guest identifiers. Do not add other profile fields or metadata until a concrete need appears.
 
-Proposed relation field: `invitation` with type `Invitation?`; it creates no database column.
+Relation field: `invitations` with type `Invitation[]`; it creates no database column.
 
 ### 4.2. `addresses`
 
@@ -93,7 +93,7 @@ Proposed relation field: `invitations` with type `Invitation[]`; it creates no d
 | --- | --- | --- | --- | --- |
 | `id` | `String` | No | Generated CUID; primary key | Stable internal key |
 | `code` | `String` | No | Generated; unique | Code used to find the invitation |
-| `user_id` | `String` | No | FK to `users.id`; unique | Invited guest |
+| `user_id` | `String` | No | FK to `users.id`; unique together with `address_id` | Invited guest |
 | `address_id` | `String` | No | FK to `addresses.id` | Selected venue and event date |
 | `status` | **`String`** | No | No enum; no default yet | Invitation and attendance state |
 | `guest_count` | `Int` | Yes | `null`; proposed nonnegative value | Total attendees, including the invited guest |
@@ -159,7 +159,7 @@ A soft delete updates `deleted_at`; it does not delete the record. Therefore, `o
 
 Relationships remain intact when a guest or invitation is soft deleted. There is no requirement to soft delete an invitation when its user is soft deleted or to delete wishes when an invitation is soft deleted, so this plan does not add those rules.
 
-Unique constraints on `user_id` and `code` include soft-deleted records. Soft deleting an invitation does not allow another invitation for the same guest or reuse of its code. Do not use a partial unique index limited to active records because the requirement is one invitation per guest.
+Unique constraints on `(user_id, address_id)` and `code` include soft-deleted records. Soft deleting an invitation does not allow another invitation for the same guest at the same venue or reuse of its code.
 
 With the proposed `Restrict` policy, an address still cannot be hard deleted while a soft-deleted invitation references it. A soft-deleted record still exists in the database.
 
@@ -169,7 +169,7 @@ With the proposed `Restrict` policy, an address still cannot be hard deleted whi
 | --- | --- | --- |
 | `id` on all four tables | Primary key | Unique identification |
 | `invitations.code` | Unique | Prevent duplicate invitation codes |
-| `invitations.user_id` | Unique + FK | At most one invitation per guest |
+| `invitations.(user_id, address_id)` | Unique | At most one invitation per guest and venue |
 | `invitations.address_id` | FK + index | Link to and query by address |
 | `wishes.invitation_id` | FK + index | Link to and query wishes by invitation |
 | `invitations.guest_count` | Proposed nonnegative CHECK when present | Prevent negative counts while allowing `null` |
@@ -236,6 +236,6 @@ Generated codes should be cryptographically difficult to guess if they act as ac
 
 ### 9.6. Limits that fit the current scope
 
-- Unique `user_id` ensures one invitation per guest record, including soft-deleted records. To reuse an invitation for that guest, restore the existing record instead of creating a replacement around the unique constraint.
+- Unique `(user_id, address_id)` ensures one invitation per guest and venue, including soft-deleted records. To reuse an invitation for that guest at the same venue, restore the existing record.
 - An address can be hard deleted only when no invitation references it, including soft-deleted invitations. This is an effect of `Restrict`, not a foreign-key defect.
 - An invitation has one venue and one attendee count. The model does not store separate responses for each date or venue because the confirmed scope assigns one address to each invitation.

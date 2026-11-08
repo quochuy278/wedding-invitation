@@ -195,7 +195,7 @@ export function AdminShell({ children, fullName }: AdminShellProps): ReactElemen
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
           <AdminSidebarTrigger />
           <Separator className="h-5" orientation="vertical" />

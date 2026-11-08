@@ -45,11 +45,16 @@ export function CreateInvitationForm({
   const submitDisabled = disabled || !selectedAddress;
   const submitLabel = busy ? t("creating") : t("create");
   const queryError = addresses.error ? apiErrors(addresses.error.code) : null;
-  const isContactConflict = mutation.error?.code === ApiErrorCode.Conflict;
+  const isDuplicateInvitation =
+    mutation.error?.details.some((detail) => detail.message === "duplicateInvitation") ?? false;
+  const isContactConflict =
+    mutation.error?.code === ApiErrorCode.Conflict && !isDuplicateInvitation;
   const mutationError = mutation.error
-    ? isContactConflict
-      ? t("contactConflict")
-      : apiErrors(mutation.error.code)
+    ? isDuplicateInvitation
+      ? t("duplicateInvitation")
+      : isContactConflict
+        ? t("contactConflict")
+        : apiErrors(mutation.error.code)
     : null;
   const timezoneHint = timezone ? t("timezoneHint", { timezone }) : undefined;
   const previewHref = created ? `/invitation/${encodeURIComponent(created.code)}` : "";
@@ -69,6 +74,7 @@ export function CreateInvitationForm({
     const duplicateContact = isContactConflict && contactField;
     if (duplicateContact) return t("duplicateContact");
     if (name === "expiresAt") return t("invalidDeadline");
+    if (name === "addressId" && isDuplicateInvitation) return t("duplicateInvitation");
     if (name === "addressId") return t("invalidAddress");
     return t("invalidField");
   }

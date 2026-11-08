@@ -110,11 +110,11 @@ function isInvitationCodeConflict(error: Prisma.PrismaClientKnownRequestError): 
   return isRecord(constraint) && constraint.index === "invitations_code_key";
 }
 
-const maximumCodeAttempts = 5;
+const maximumCreationAttempts = 5;
 
 export const invitationRepository: InvitationRepository = {
   async create(input: CreateInvitationInput): Promise<CreatedInvitationRecord> {
-    for (let attempt = 0; attempt < maximumCodeAttempts; attempt += 1) {
+    for (let attempt = 0; attempt < maximumCreationAttempts; attempt += 1) {
       try {
         return await prisma.$transaction(async (transaction): Promise<CreatedInvitationRecord> => {
           const address = await transaction.address.findUnique({
@@ -134,7 +134,7 @@ export const invitationRepository: InvitationRepository = {
               phone_number: true,
               level: true,
               deleted_at: true,
-              invitation: { select: { id: true } },
+              invitations: { where: { address_id: input.addressId }, select: { id: true } },
             },
           });
           const existingContact = existingContacts[0];
@@ -143,7 +143,6 @@ export const invitationRepository: InvitationRepository = {
             existingContact &&
             existingContact.level === UserLevel.Guest &&
             !existingContact.deleted_at &&
-            !existingContact.invitation &&
             existingContact.email.toLowerCase() === input.email.toLowerCase() &&
             existingContact.phone_number === input.phoneNumber;
           if (existingContact && !reusableGuest) {
@@ -155,6 +154,9 @@ export const invitationRepository: InvitationRepository = {
             if (duplicateEmail) fields.push("email");
             if (duplicatePhone) fields.push("phoneNumber");
             throw new InvitationCreationError("contactConflict", fields);
+          }
+          if (reusableGuest && existingContact.invitations.length > 0) {
+            throw new InvitationCreationError("duplicateInvitation", ["addressId"]);
           }
           const data: Prisma.InvitationCreateInput = {
             code: invitationCodeGenerator.generate(),
@@ -182,6 +184,8 @@ export const invitationRepository: InvitationRepository = {
         if (!uniqueConflict) throw error;
         // PostgreSQL aborts a failed transaction, so a collision retries the whole creation.
         if (isInvitationCodeConflict(error)) continue;
+        // A concurrent creation may have saved this guest first. Retry to reuse that guest.
+        if (attempt + 1 < maximumCreationAttempts) continue;
         throw new InvitationCreationError("contactConflict", ["email", "phoneNumber"]);
       }
     }

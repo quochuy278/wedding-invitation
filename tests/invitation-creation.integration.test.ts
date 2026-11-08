@@ -159,7 +159,7 @@ test("created admins have hashed login credentials and contacts cannot be reused
   await assert.rejects(invitationService.create(input), InvitationCreationError);
 });
 
-test("a separately created guest can receive exactly one invitation", async () => {
+test("a separately created guest can receive one invitation per venue", async () => {
   const input = invitationInput("new-user-guest");
   const guest = await createUser({
     fullName: input.guestName,
@@ -170,10 +170,57 @@ test("a separately created guest can receive exactly one invitation", async () =
   const stored = await prisma.user.findUniqueOrThrow({ where: { id: guest.id } });
   assert.equal(stored.password_hash, null);
   await invitationService.create(input);
-  const invitation = await prisma.invitation.findUniqueOrThrow({ where: { user_id: guest.id } });
+  const invitation = await prisma.invitation.findUniqueOrThrow({
+    where: { user_id_address_id: { user_id: guest.id, address_id: input.addressId } },
+  });
   assert.equal(invitation.user_id, guest.id);
   assert.equal(await prisma.user.count({ where: { email: input.email } }), 1);
-  await assert.rejects(invitationService.create(input), InvitationCreationError);
+  await assert.rejects(
+    invitationService.create(input),
+    (error: unknown) =>
+      error instanceof InvitationCreationError && error.reason === "duplicateInvitation",
+  );
+});
+
+test("one guest has independent invitations at different venues", async () => {
+  const input = invitationInput("multiple-venues");
+  const first = await invitationService.create(input);
+  const second = await invitationService.create({ ...input, addressId: legacyId });
+  assert.notEqual(first.code, second.code);
+  assert.equal(await prisma.user.count({ where: { email: input.email } }), 1);
+  const saved = await prisma.invitation.findMany({ where: { user: { email: input.email } } });
+  assert.equal(saved.length, 2);
+  assert.equal(saved[0].user_id, saved[1].user_id);
+
+  await prisma.invitation.update({
+    where: { id: first.id },
+    data: { status: "accepted", guest_count: 2, admin_note: "First venue only" },
+  });
+  const firstGuest = await invitationService.getByCode(first.code);
+  const secondGuest = await invitationService.getByCode(second.code);
+  assert.equal(firstGuest?.address.id, venue.id);
+  assert.equal(firstGuest?.status, "accepted");
+  assert.equal(secondGuest?.address.id, legacyId);
+  assert.equal(secondGuest?.status, "pending");
+  assert.equal(secondGuest?.guestCount, 0);
+  const unchanged = await prisma.invitation.findUniqueOrThrow({ where: { id: second.id } });
+  assert.equal(unchanged.admin_note, null);
+});
+
+test("concurrent invitations at different venues reuse an existing guest", async () => {
+  const input = invitationInput("concurrent-venues");
+  await createUser({
+    fullName: input.guestName,
+    email: input.email,
+    phoneNumber: input.phoneNumber,
+    level: UserLevel.Guest,
+  });
+  const created = await Promise.all([
+    invitationService.create(input),
+    invitationService.create({ ...input, addressId: legacyId }),
+  ]);
+  assert.equal(new Set(created.map((invitation) => invitation.code)).size, 2);
+  assert.equal(await prisma.user.count({ where: { email: input.email } }), 1);
 });
 
 test("venue creation saves geocoded coordinates and preserves the entered address", async (context) => {
@@ -396,7 +443,7 @@ test("duplicate contact and concurrent creation produce only one invitation", as
   const rejected = results.find((result) => result.status === "rejected");
   assert.ok(rejected?.status === "rejected");
   assert.ok(rejected.reason instanceof InvitationCreationError);
-  assert.equal(rejected.reason.reason, "contactConflict");
+  assert.equal(rejected.reason.reason, "duplicateInvitation");
   const afterList = await invitationService.list({ page: 1, pageSize: 100 });
   assert.equal(afterList.pagination.totalItems, beforeList.pagination.totalItems + 1);
 });
@@ -653,7 +700,7 @@ test("HTTP allows admin resends across delivery statuses and applies authenticat
     });
     try {
       const browserInvite = await create("email-e2e-browser");
-      const page = await browser.newPage();
+      const page = await browser.newPage({ viewport: { width: 1024, height: 1440 } });
       const cookieSeparator = adminCookie.indexOf("=");
       await page.context().addCookies([
         {
@@ -668,6 +715,20 @@ test("HTTP allows admin resends across delivery statuses and applies authenticat
       await row.getByText("Gửi thất bại", { exact: true }).waitFor();
       assert.equal(await row.getByRole("button", { name: "Gửi lại email" }).count(), 0);
       const actions = row.getByRole("button", { name: /^Thao tác cho / });
+      const canClickWithoutPageScroll = await actions.evaluate((button: HTMLElement) => {
+        const { x, y, width, height, right } = button.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth;
+        const tableContainer = button.closest('[data-slot="table-container"]');
+        const hitTarget = document.elementFromPoint(x + width / 2, y + height / 2);
+        return (
+          document.documentElement.scrollWidth <= viewportWidth &&
+          tableContainer instanceof HTMLElement &&
+          tableContainer.scrollWidth <= tableContainer.clientWidth &&
+          right <= viewportWidth &&
+          button.contains(hitTarget)
+        );
+      });
+      assert.ok(canClickWithoutPageScroll, "Row actions stay clickable in a portrait viewport.");
       await actions.click();
       await page.getByRole("menuitem", { name: /^Xem lời chúc của / }).click();
       const wishes = page.getByRole("dialog", { name: "Lời chúc của khách" });

@@ -17,7 +17,7 @@ model User {
   created_at    DateTime    @default(now()) @db.Timestamptz(3)
   updated_at    DateTime    @updatedAt @db.Timestamptz(3)
   deleted_at    DateTime?   @db.Timestamptz(3)
-  invitation    Invitation?
+  invitations   Invitation[]
   sessions      Session[]
 
   @@map("users")
@@ -75,7 +75,7 @@ enum InvitationEmailStatus {
 model Invitation {
   id                 String                 @id @default(cuid())
   code               String                 @unique
-  user_id            String                 @unique
+  user_id            String
   address_id         String
   status             String
   guest_count        Int                    @default(1)
@@ -94,6 +94,7 @@ model Invitation {
   address            Address                @relation(fields: [address_id], references: [id], onUpdate: Cascade, onDelete: Restrict)
   wishes             Wish[]
 
+  @@unique([user_id, address_id])
   @@index([address_id])
   @@map("invitations")
 }

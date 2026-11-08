@@ -51,7 +51,8 @@ export async function POST(request: Request): Promise<Response> {
     return privateResponse(ok(invitation, 201));
   } catch (error: unknown) {
     if (error instanceof InvitationCreationError) {
-      const isConflict = error.reason === "contactConflict";
+      const isConflict =
+        error.reason === "contactConflict" || error.reason === "duplicateInvitation";
       const code = isConflict ? ApiErrorCode.Conflict : ApiErrorCode.BadRequest;
       const status = isConflict ? 409 : 400;
       const details = error.fields.map((field) => ({ field, message: error.reason }));
