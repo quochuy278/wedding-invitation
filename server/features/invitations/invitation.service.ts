@@ -62,6 +62,7 @@ export const invitationService = {
           id: invitation.id,
           code: invitation.code,
           guestName: invitation.user.full_name,
+          email: invitation.user.email,
           phoneNumber: invitation.user.phone_number,
           address: { name: invitation.address.name, addressText: invitation.address.address_text },
           adminNote: invitation.admin_note,

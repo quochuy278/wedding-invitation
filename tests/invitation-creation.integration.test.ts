@@ -711,24 +711,35 @@ test("HTTP allows admin resends across delivery statuses and applies authenticat
       ]);
       await page.goto(`${baseUrl}/dashboard/invitations`);
       const row = page.getByRole("row").filter({ hasText: browserInvite.code });
+      await page.getByRole("columnheader", { name: "Email", exact: true }).waitFor();
+      await row.getByRole("cell", { name: browserInvite.email, exact: true }).waitFor();
       await page.getByRole("columnheader", { name: "Trạng thái email", exact: true }).waitFor();
       await row.getByText("Gửi thất bại", { exact: true }).waitFor();
       assert.equal(await row.getByRole("button", { name: "Gửi lại email" }).count(), 0);
       const actions = row.getByRole("button", { name: /^Thao tác cho / });
+      await actions.scrollIntoViewIfNeeded();
       const canClickWithoutPageScroll = await actions.evaluate((button: HTMLElement) => {
         const { x, y, width, height, right } = button.getBoundingClientRect();
         const viewportWidth = document.documentElement.clientWidth;
         const tableContainer = button.closest('[data-slot="table-container"]');
+        const table = button.closest("table");
+        const tableRow = button.closest("tr");
         const hitTarget = document.elementFromPoint(x + width / 2, y + height / 2);
         return (
           document.documentElement.scrollWidth <= viewportWidth &&
           tableContainer instanceof HTMLElement &&
-          tableContainer.scrollWidth <= tableContainer.clientWidth &&
+          table instanceof HTMLTableElement &&
+          tableRow instanceof HTMLTableRowElement &&
+          getComputedStyle(table).display === "table" &&
+          getComputedStyle(tableRow).display === "table-row" &&
           right <= viewportWidth &&
           button.contains(hitTarget)
         );
       });
-      assert.ok(canClickWithoutPageScroll, "Row actions stay clickable in a portrait viewport.");
+      assert.ok(
+        canClickWithoutPageScroll,
+        "Row actions stay clickable after scrolling the table in a portrait viewport.",
+      );
       await actions.click();
       await page.getByRole("menuitem", { name: /^Xem lời chúc của / }).click();
       const wishes = page.getByRole("dialog", { name: "Lời chúc của khách" });

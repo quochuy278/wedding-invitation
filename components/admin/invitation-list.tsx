@@ -51,19 +51,15 @@ import { InvitationWishDialog } from "./invitation-wish-dialog";
 
 const pageSizeOptions = [5, 10, invitationPaginationDefaults.pageSize, 50] as const;
 const loadingRowKeys = Array.from({ length: 5 }, (_, index) => `loading-row-${index}`);
-const compactRowClassName =
-  "grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border-0 p-3 ring-1 ring-border @5xl/invitation-list:table-row @5xl/invitation-list:rounded-none @5xl/invitation-list:border-b @5xl/invitation-list:p-0 @5xl/invitation-list:ring-0";
-const fieldLabelClassName = "mb-1 block text-xs text-muted-foreground @5xl/invitation-list:hidden";
-const actionsColumnClassName =
-  "col-start-2 row-start-1 block self-start justify-self-end text-right @5xl/invitation-list:table-cell";
 const columnKeys = [
   "guest",
+  "guestEmail",
   "code",
   "address",
   "status",
   "guestCount",
   "updatedAt",
-  "email",
+  "emailStatus",
   "note",
   "actions",
 ] as const;
@@ -276,33 +272,24 @@ export function InvitationList(): ReactElement {
     }
 
     return (
-      <TableRow key={invitation.id} className={compactRowClassName}>
-        <TableCell className="col-span-2 min-w-0 pr-12 whitespace-normal wrap-anywhere @5xl/invitation-list:pr-2">
+      <TableRow key={invitation.id}>
+        <TableCell className="min-w-44 max-w-64 whitespace-normal wrap-anywhere">
           <p className="font-medium">{invitation.guestName}</p>
           <p className="text-xs text-muted-foreground">{phoneNumber}</p>
         </TableCell>
-        <TableCell className="min-w-0 whitespace-normal">
-          <span className={fieldLabelClassName}>{t("code")}</span>
+        <TableCell className="min-w-52 max-w-64 whitespace-normal wrap-anywhere">
+          {invitation.email}
+        </TableCell>
+        <TableCell>
           <span className="font-mono text-xs">{invitation.code}</span>
         </TableCell>
-        <TableCell className="min-w-0 whitespace-normal wrap-anywhere">
-          <span className={fieldLabelClassName}>{t("address")}</span>
+        <TableCell className="min-w-36 max-w-56 whitespace-normal wrap-anywhere">
           {invitation.address.name}
         </TableCell>
-        <TableCell className="min-w-0 whitespace-normal">
-          <span className={fieldLabelClassName}>{t("status")}</span>
-          {statusBadge}
-        </TableCell>
-        <TableCell className="min-w-0 @5xl/invitation-list:text-center">
-          <span className={fieldLabelClassName}>{t("guestCount")}</span>
-          {invitation.guestCount}
-        </TableCell>
-        <TableCell className="min-w-0 whitespace-normal text-muted-foreground wrap-anywhere">
-          <span className={fieldLabelClassName}>{t("updatedAt")}</span>
-          {updatedAt}
-        </TableCell>
-        <TableCell className="min-w-0 whitespace-normal">
-          <span className={fieldLabelClassName}>{t("email.title")}</span>
+        <TableCell>{statusBadge}</TableCell>
+        <TableCell className="text-center">{invitation.guestCount}</TableCell>
+        <TableCell className="text-muted-foreground">{updatedAt}</TableCell>
+        <TableCell className="max-w-48 whitespace-normal">
           <Badge
             className="h-auto whitespace-normal"
             variant={
@@ -320,8 +307,7 @@ export function InvitationList(): ReactElement {
             </p>
           )}
         </TableCell>
-        <TableCell className="col-span-2 min-w-0 whitespace-normal wrap-anywhere">
-          <span className={fieldLabelClassName}>{t("note.title")}</span>
+        <TableCell className="min-w-36 max-w-56 whitespace-normal wrap-anywhere">
           {invitation.adminNote ? (
             <HoverCard>
               <HoverCardTrigger
@@ -347,7 +333,7 @@ export function InvitationList(): ReactElement {
             <span className="text-muted-foreground">—</span>
           )}
         </TableCell>
-        <TableCell className={actionsColumnClassName}>
+        <TableCell className="text-right">
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger
               id={triggerId}
@@ -423,7 +409,7 @@ export function InvitationList(): ReactElement {
             )}
           </span>
         </CardHeader>
-        <CardContent className="@container/invitation-list space-y-6">
+        <CardContent className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <InvitationFiltersDialog filters={filters} onApply={handleApplyFilters} />
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -450,33 +436,34 @@ export function InvitationList(): ReactElement {
             </div>
           ) : (
             <>
-              <Table className="block @5xl/invitation-list:table @5xl/invitation-list:table-fixed">
-                <TableHeader className="sr-only @5xl/invitation-list:not-sr-only @5xl/invitation-list:table-header-group [&_th]:whitespace-normal">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[15%]">{t("guest")}</TableHead>
-                    <TableHead className="w-[8%]">{t("code")}</TableHead>
-                    <TableHead className="w-[16%]">{t("address")}</TableHead>
-                    <TableHead className="w-[12%]">{t("status")}</TableHead>
-                    <TableHead className="w-[6%] text-center">{t("guestCount")}</TableHead>
-                    <TableHead className="w-[11%]">{t("updatedAt")}</TableHead>
-                    <TableHead className="w-[12%]">{t("email.title")}</TableHead>
-                    <TableHead className="w-[14%]">{t("note.title")}</TableHead>
-                    <TableHead className="w-[6%] text-right">{t("actions")}</TableHead>
+                    <TableHead>{t("guest")}</TableHead>
+                    <TableHead>{t("guestEmail")}</TableHead>
+                    <TableHead>{t("code")}</TableHead>
+                    <TableHead>{t("address")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
+                    <TableHead className="text-center">{t("guestCount")}</TableHead>
+                    <TableHead>{t("updatedAt")}</TableHead>
+                    <TableHead>{t("email.title")}</TableHead>
+                    <TableHead>{t("note.title")}</TableHead>
+                    <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody className="grid gap-3 @5xl/invitation-list:table-row-group">
+                <TableBody>
                   {isPending ? (
                     loadingRowKeys.map((rowKey) => (
-                      <TableRow key={rowKey} className={compactRowClassName}>
+                      <TableRow key={rowKey}>
                         {columnKeys.map((columnKey) => (
-                          <TableCell key={columnKey} className="min-w-0">
-                            <Skeleton className="h-5 w-full" />
+                          <TableCell key={columnKey}>
+                            <Skeleton className="h-5 w-full min-w-16" />
                           </TableCell>
                         ))}
                       </TableRow>
                     ))
                   ) : isListEmpty ? (
-                    <TableRow className="block @5xl/invitation-list:table-row">
+                    <TableRow>
                       <TableCell
                         colSpan={columnKeys.length}
                         className="py-12 text-center text-muted-foreground"

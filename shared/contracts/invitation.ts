@@ -54,6 +54,7 @@ export type InvitationListItemDto = {
   id: string;
   code: string;
   guestName: string;
+  email: string;
   phoneNumber: string | null;
   address: Pick<AddressDto, "name" | "addressText">;
   adminNote: string | null;

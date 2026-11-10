@@ -22,7 +22,7 @@ const adminInvitationSelect = {
   email_error: true,
   email_attempted_at: true,
   expires_at: true,
-  user: { select: { full_name: true, phone_number: true } },
+  user: { select: { full_name: true, email: true, phone_number: true } },
   address: { select: { name: true, address_text: true } },
 } as const satisfies Prisma.InvitationSelect;
 

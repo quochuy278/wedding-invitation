@@ -164,6 +164,7 @@ test("list pagination uses stable order, global summary and excludes deleted rec
       "id",
       "code",
       "guestName",
+      "email",
       "phoneNumber",
       "address",
       "adminNote",
@@ -176,6 +177,7 @@ test("list pagination uses stable order, global summary and excludes deleted rec
     ].sort(),
   );
   assert.equal(expired.phoneNumber, null);
+  assert.equal(expired.email, guest.email);
   assert.equal(expired.adminNote, null);
   assert.equal(expired.updatedAt, invitations[0].updated_at.toISOString());
   assert.equal(first.items.find((item) => item.id === invitations[3].id)?.status, "custom-status");

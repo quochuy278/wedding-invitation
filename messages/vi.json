@@ -183,6 +183,7 @@
       "pendingInvitations": "Đang chờ",
       "tableTitle": "Chi tiết phản hồi",
       "guest": "Khách mời",
+      "guestEmail": "Email",
       "code": "Mã thiệp",
       "filters": "Bộ lọc",
       "filtersActive": "Bộ lọc ({count} đang dùng)",
